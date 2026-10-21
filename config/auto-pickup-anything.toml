@@ -1,0 +1,22 @@
+# Auto Pickup Anything 0.6.1
+# Active immediately on a compatible D2RLoader runtime. Restart after edits.
+enabled = true
+# Optional troubleshooting mode; compatibility checks always run.
+validate_only = false
+
+[vanilla]
+gems = true
+runes = true
+keys = false
+health_potions = false
+mana_potions = false
+rejuvenation_potions = false
+
+[reimagined]
+# Reimagined gems have a different item code
+gems = true
+gem_stacks = true
+rune_stacks = true
+
+[d2rl]
+match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks"]

@@ -1,0 +1,782 @@
+[
+  {
+    "code": "gcv",
+    "name": "Chipped Amethyst",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfv",
+    "name": "Flawed Amethyst",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsv",
+    "name": "Amethyst",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gzv",
+    "name": "Flawless Amethyst",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpv",
+    "name": "Perfect Amethyst",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gcy",
+    "name": "Chipped Topaz",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfy",
+    "name": "Flawed Topaz",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsy",
+    "name": "Topaz",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gly",
+    "name": "Flawless Topaz",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpy",
+    "name": "Perfect Topaz",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gcb",
+    "name": "Chipped Sapphire",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfb",
+    "name": "Flawed Sapphire",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsb",
+    "name": "Sapphire",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "glb",
+    "name": "Flawless Sapphire",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpb",
+    "name": "Perfect Sapphire",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gcg",
+    "name": "Chipped Emerald",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfg",
+    "name": "Flawed Emerald",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsg",
+    "name": "Emerald",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "glg",
+    "name": "Flawless Emerald",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpg",
+    "name": "Perfect Emerald",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gcr",
+    "name": "Chipped Ruby",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfr",
+    "name": "Flawed Ruby",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsr",
+    "name": "Ruby",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "glr",
+    "name": "Flawless Ruby",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpr",
+    "name": "Perfect Ruby",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gcw",
+    "name": "Chipped Diamond",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gfw",
+    "name": "Flawed Diamond",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gsw",
+    "name": "Diamond",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "glw",
+    "name": "Flawless Diamond",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "gpw",
+    "name": "Perfect Diamond",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "skc",
+    "name": "Chipped Skull",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "skf",
+    "name": "Flawed Skull",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "sku",
+    "name": "Skull",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "skl",
+    "name": "Flawless Skull",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "skz",
+    "name": "Perfect Skull",
+    "scope": "vanilla",
+    "group": "gems"
+  },
+  {
+    "code": "r01",
+    "name": "El Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r02",
+    "name": "Eld Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r03",
+    "name": "Tir Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r04",
+    "name": "Nef Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r05",
+    "name": "Eth Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r06",
+    "name": "Ith Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r07",
+    "name": "Tal Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r08",
+    "name": "Ral Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r09",
+    "name": "Ort Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r10",
+    "name": "Thul Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r11",
+    "name": "Amn Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r12",
+    "name": "Sol Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r13",
+    "name": "Shael Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r14",
+    "name": "Dol Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r15",
+    "name": "Hel Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r16",
+    "name": "Io Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r17",
+    "name": "Lum Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r18",
+    "name": "Ko Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r19",
+    "name": "Fal Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r20",
+    "name": "Lem Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r21",
+    "name": "Pul Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r22",
+    "name": "Um Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r23",
+    "name": "Mal Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r24",
+    "name": "Ist Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r25",
+    "name": "Gul Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r26",
+    "name": "Vex Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r27",
+    "name": "Ohm Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r28",
+    "name": "Lo Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r29",
+    "name": "Sur Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r30",
+    "name": "Ber Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r31",
+    "name": "Jah Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r32",
+    "name": "Cham Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "r33",
+    "name": "Zod Rune",
+    "scope": "vanilla",
+    "group": "runes"
+  },
+  {
+    "code": "key",
+    "name": "Key",
+    "scope": "vanilla",
+    "group": "keys"
+  },
+  {
+    "code": "hp1",
+    "name": "Minor Healing Potion",
+    "scope": "vanilla",
+    "group": "health_potions"
+  },
+  {
+    "code": "hp2",
+    "name": "Light Healing Potion",
+    "scope": "vanilla",
+    "group": "health_potions"
+  },
+  {
+    "code": "hp3",
+    "name": "Healing Potion",
+    "scope": "vanilla",
+    "group": "health_potions"
+  },
+  {
+    "code": "hp4",
+    "name": "Greater Healing Potion",
+    "scope": "vanilla",
+    "group": "health_potions"
+  },
+  {
+    "code": "hp5",
+    "name": "Super Healing Potion",
+    "scope": "vanilla",
+    "group": "health_potions"
+  },
+  {
+    "code": "mp1",
+    "name": "Minor Mana Potion",
+    "scope": "vanilla",
+    "group": "mana_potions"
+  },
+  {
+    "code": "mp2",
+    "name": "Light Mana Potion",
+    "scope": "vanilla",
+    "group": "mana_potions"
+  },
+  {
+    "code": "mp3",
+    "name": "Mana Potion",
+    "scope": "vanilla",
+    "group": "mana_potions"
+  },
+  {
+    "code": "mp4",
+    "name": "Greater Mana Potion",
+    "scope": "vanilla",
+    "group": "mana_potions"
+  },
+  {
+    "code": "mp5",
+    "name": "Super Mana Potion",
+    "scope": "vanilla",
+    "group": "mana_potions"
+  },
+  {
+    "code": "rvs",
+    "name": "Rejuvenation Potion",
+    "scope": "vanilla",
+    "group": "rejuvenation_potions"
+  },
+  {
+    "code": "rvl",
+    "name": "Full Rejuvenation Potion",
+    "scope": "vanilla",
+    "group": "rejuvenation_potions"
+  },
+  {
+    "code": "gmm",
+    "name": "Amethyst",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gmt",
+    "name": "Topaz",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gms",
+    "name": "Sapphire",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gme",
+    "name": "Emerald",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gmr",
+    "name": "Ruby",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gmd",
+    "name": "Diamond",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gmk",
+    "name": "Skull",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "gmo",
+    "name": "Chaos Onyx",
+    "scope": "reimagined",
+    "group": "gems"
+  },
+  {
+    "code": "1am",
+    "name": "Amethyst Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1tp",
+    "name": "Topaz Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1sa",
+    "name": "Sapphire Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1em",
+    "name": "Emerald Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1rb",
+    "name": "Ruby Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1di",
+    "name": "Diamond Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1sk",
+    "name": "Skull Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "1so",
+    "name": "Chaos Onyx Stack",
+    "scope": "reimagined",
+    "group": "gem_stacks"
+  },
+  {
+    "code": "s01",
+    "name": "El Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s02",
+    "name": "Eld Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s03",
+    "name": "Tir Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s04",
+    "name": "Nef Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s05",
+    "name": "Eth Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s06",
+    "name": "Ith Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s07",
+    "name": "Tal Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s08",
+    "name": "Ral Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s09",
+    "name": "Ort Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s10",
+    "name": "Thul Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s11",
+    "name": "Amn Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s12",
+    "name": "Sol Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s13",
+    "name": "Shael Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s14",
+    "name": "Dol Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s15",
+    "name": "Hel Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s16",
+    "name": "Io Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s17",
+    "name": "Lum Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s18",
+    "name": "Ko Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s19",
+    "name": "Fal Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s20",
+    "name": "Lem Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s21",
+    "name": "Pul Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s22",
+    "name": "Um Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s23",
+    "name": "Mal Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s24",
+    "name": "Ist Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s25",
+    "name": "Gul Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s26",
+    "name": "Vex Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s27",
+    "name": "Ohm Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s28",
+    "name": "Lo Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s29",
+    "name": "Sur Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s30",
+    "name": "Ber Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s31",
+    "name": "Jah Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s32",
+    "name": "Cham Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  },
+  {
+    "code": "s33",
+    "name": "Zod Rune Stack",
+    "scope": "reimagined",
+    "group": "rune_stacks"
+  }
+]
