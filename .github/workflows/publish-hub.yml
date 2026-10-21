@@ -1,0 +1,116 @@
+name: Upload to the D2RLoader Plugin Hub
+
+on:
+  release:
+    types: [published]
+  # Manual runs build/test/package only; they never publish to the Hub.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d2rloader-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PLUGIN_KEY: auto-pickup-anything
+
+jobs:
+  build:
+    name: Build and test Windows x64 package
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      package: ${{ steps.metadata.outputs.package }}
+    steps:
+      - name: Check out the release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Validate plugin and release version
+        id: metadata
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content plugin.json -Raw | ConvertFrom-Json
+          if ($manifest.id -cne $env:PLUGIN_KEY) {
+            throw 'plugin.json does not match this repository workflow.'
+          }
+          if ($env:RELEASE_TAG) {
+            $releaseVersion = $env:RELEASE_TAG -creplace '^v', ''
+            if ($releaseVersion -cne $manifest.version) {
+              throw "Release tag version '$releaseVersion' must match plugin.json version '$($manifest.version)'."
+            }
+          }
+          $package = '{0}-v{1}-native.zip' -f $manifest.id, $manifest.version
+          "version=$($manifest.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package=$package" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Build and run CTest
+        shell: cmd
+        run: call build.cmd
+
+      - name: Build and verify release ZIPs
+        run: python package.py
+
+      - name: Save release packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PLUGIN_KEY }}-packages
+          path: dist/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  upload:
+    name: Publish the native package to D2RLoader
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download verified packages
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.PLUGIN_KEY }}-packages
+          path: dist
+
+      - name: Verify package checksums
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS.txt
+
+      - name: Upload the release
+        shell: bash
+        env:
+          D2RLOADER_TOKEN: ${{ secrets.D2RLOADER_TOKEN }}
+          PLUGIN_ID: ${{ vars.D2RLOADER_PLUGIN_ID }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PACKAGE: ${{ needs.build.outputs.package }}
+          CHANGELOG: ${{ github.event.release.body }}
+        run: |
+          set -euo pipefail
+          : "${D2RLOADER_TOKEN:?Add the D2RLOADER_TOKEN repository secret before publishing.}"
+          : "${PLUGIN_ID:?Set the D2RLOADER_PLUGIN_ID repository variable to this project's Hub ID.}"
+          if [[ ! "$PLUGIN_ID" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo '::error::D2RLOADER_PLUGIN_ID contains invalid URL path characters.'
+            exit 1
+          fi
+          test -f "dist/$PACKAGE"
+          DETAILS=$(jq -cn --arg version "$VERSION" --arg changelog "$CHANGELOG" '{version: $version, changelog: $changelog}')
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 15 --max-time 300 \
+            --request POST "https://d2rloader.net/api/v1/hub/plugins/$PLUGIN_ID/releases?consent=1" \
+            --header "Authorization: Bearer $D2RLOADER_TOKEN" \
+            --form-string "details=$DETAILS" \
+            --form "file=@dist/$PACKAGE;type=application/zip"

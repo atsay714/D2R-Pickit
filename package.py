@@ -75,7 +75,7 @@ def main():
         outputs.append(path)
     source = {}
     for name in ('CMakeLists.txt', 'README.md', 'BUILDING.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md',
-                 'UPSTREAM.md', 'CHANGELOG.md', 'plugin.json', 'build.cmd', 'package.py', '.gitignore', '.gitattributes'):
+                 'UPSTREAM.md', 'CHANGELOG.md', 'RELEASING.md', 'plugin.json', 'build.cmd', 'package.py', '.gitignore', '.gitattributes'):
         source[name] = (ROOT / name).read_bytes()
     for name in ('prepare.py', 'catalog.json'):
         if (ROOT / name).exists():
@@ -88,7 +88,7 @@ def main():
     write_zip(path, source)
     outputs.append(path)
     sums = ''.join(f'{digest(path.read_bytes())}  {path.name}\n' for path in outputs)
-    (args.output_dir / 'SHA256SUMS.txt').write_text(sums, encoding='utf-8')
+    (args.output_dir / 'SHA256SUMS.txt').write_text(sums, encoding='utf-8', newline='\n')
     for path in outputs:
         print(path)
 

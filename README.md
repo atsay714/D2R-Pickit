@@ -109,6 +109,12 @@ inventory pages. D2RLoader may show an environment-history warning after a
 plugin change; keep plugin IDs stable and back up characters before changing
 your setup. No save-history editing is part of installation or removal.
 
+## Releases
+
+See [RELEASING.md](RELEASING.md) for the D2RLoader Hub publishing workflow.
+It builds and tests on Windows, then uploads the native package when a GitHub
+release is published. Manual Actions runs build and package without publishing.
+
 ## Development and credits
 
 See [BUILDING.md](BUILDING.md) for builds, tests and packaging, and

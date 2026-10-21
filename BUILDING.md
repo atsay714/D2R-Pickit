@@ -52,6 +52,6 @@ VERSIONINFO, config heading and changelog in sync. Keep the plugin ID stable:
 D2RLoader records gameplay plugin identities in character environment history.
 Do not store publishing credentials in this repository.
 
-The d2rloader.net publication workflow will be added separately after its
-official sample is supplied. This initial repository has no Actions workflow,
-publishing token, release tag or remote release.
+See [RELEASING.md](RELEASING.md) for the D2RLoader Hub workflow, repository
+secret and Hub project-ID setup. Manual workflow runs build and test only;
+publishing a GitHub release triggers the Hub upload.
