@@ -165,6 +165,8 @@ your setup. No save-history editing is part of installation or removal.
 
 ## Releases
 
+The published Hub listing is backed up in [HUB_LISTING.md](HUB_LISTING.md).
+
 See [RELEASING.md](RELEASING.md) for the D2RLoader Hub publishing workflow.
 It builds and tests on Windows, then uploads the native package when a GitHub
 release is published. Manual Actions runs build and package without publishing
