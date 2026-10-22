@@ -3,14 +3,20 @@ name: Upload to the D2RLoader Plugin Hub
 on:
   release:
     types: [published]
-  # Manual runs build/test/package only; they never publish to the Hub.
+  # Leave release_tag empty for a build-only run.
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing published GitHub release tag to upload; blank builds only'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: d2rloader-${{ github.event.release.tag_name || github.ref }}
+  group: d2rloader-${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -24,11 +30,12 @@ jobs:
     outputs:
       version: ${{ steps.metadata.outputs.version }}
       package: ${{ steps.metadata.outputs.package }}
+      changelog: ${{ steps.metadata.outputs.changelog }}
     steps:
       - name: Check out the release source
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
           persist-credentials: false
 
       - name: Set up Python
@@ -40,22 +47,33 @@ jobs:
         id: metadata
         shell: pwsh
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
           $manifest = Get-Content plugin.json -Raw | ConvertFrom-Json
           if ($manifest.id -cne $env:PLUGIN_KEY) {
             throw 'plugin.json does not match this repository workflow.'
           }
+          $changelog = ''
           if ($env:RELEASE_TAG) {
             $releaseVersion = $env:RELEASE_TAG -creplace '^v', ''
             if ($releaseVersion -cne $manifest.version) {
               throw "Release tag version '$releaseVersion' must match plugin.json version '$($manifest.version)'."
             }
+            $tag = [uri]::EscapeDataString($env:RELEASE_TAG)
+            $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' }
+            $release = Invoke-RestMethod -Uri "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" -Headers $headers
+            if ($release.draft -or $release.tag_name -cne $env:RELEASE_TAG) {
+              throw 'Only an existing published GitHub release can be uploaded.'
+            }
+            $changelog = [string]$release.body
           }
           $package = '{0}-v{1}-native.zip' -f $manifest.id, $manifest.version
           "version=$($manifest.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "package=$package" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $delimiter = 'changelog_' + [guid]::NewGuid().ToString('N')
+          "changelog<<$delimiter", $changelog, $delimiter | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Build and run CTest
         shell: cmd
@@ -76,7 +94,7 @@ jobs:
   upload:
     name: Publish the native package to D2RLoader
     needs: build
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -94,16 +112,16 @@ jobs:
         shell: bash
         env:
           D2RLOADER_TOKEN: ${{ secrets.D2RLOADER_TOKEN }}
-          PLUGIN_ID: ${{ vars.D2RLOADER_PLUGIN_ID }}
+          PLUGIN_ID: ${{ vars.PLUGIN_ID || vars.D2RLOADER_PLUGIN_ID }}
           VERSION: ${{ needs.build.outputs.version }}
           PACKAGE: ${{ needs.build.outputs.package }}
-          CHANGELOG: ${{ github.event.release.body }}
+          CHANGELOG: ${{ needs.build.outputs.changelog }}
         run: |
           set -euo pipefail
           : "${D2RLOADER_TOKEN:?Add the D2RLOADER_TOKEN repository secret before publishing.}"
-          : "${PLUGIN_ID:?Set the D2RLOADER_PLUGIN_ID repository variable to this project's Hub ID.}"
+          : "${PLUGIN_ID:?Set the PLUGIN_ID repository variable to the Hub project ID.}"
           if [[ ! "$PLUGIN_ID" =~ ^[A-Za-z0-9_-]+$ ]]; then
-            echo '::error::D2RLOADER_PLUGIN_ID contains invalid URL path characters.'
+            echo '::error::PLUGIN_ID contains invalid URL path characters.'
             exit 1
           fi
           test -f "dist/$PACKAGE"

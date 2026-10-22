@@ -53,5 +53,5 @@ D2RLoader records gameplay plugin identities in character environment history.
 Do not store publishing credentials in this repository.
 
 See [RELEASING.md](RELEASING.md) for the D2RLoader Hub workflow, repository
-secret and Hub project-ID setup. Manual workflow runs build and test only;
+secret and Hub project-ID setup. Manual runs with no release tag build and test only;
 publishing a GitHub release triggers the Hub upload.

@@ -167,7 +167,8 @@ your setup. No save-history editing is part of installation or removal.
 
 See [RELEASING.md](RELEASING.md) for the D2RLoader Hub publishing workflow.
 It builds and tests on Windows, then uploads the native package when a GitHub
-release is published. Manual Actions runs build and package without publishing.
+release is published. Manual Actions runs build and package without publishing
+when the optional release tag is left blank; see the release guide for retries.
 
 ## Development and credits
 

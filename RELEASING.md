@@ -21,7 +21,8 @@ The workflow does not attach files to the GitHub release itself.
    plugin ID in `plugin.json`.
 2. In GitHub **Settings > Secrets and variables > Actions**, add the repository
    secret **D2RLOADER_TOKEN** with your Hub API token.
-3. Under **Variables**, add **D2RLOADER_PLUGIN_ID** with this project's Hub ID.
+3. Under **Variables**, add **PLUGIN_ID** with this project's Hub ID.
+   **D2RLOADER_PLUGIN_ID** is also accepted for existing configurations.
    Set it separately in each repository so packages go to the correct project.
 
 No token is stored in the workflow or source tree. A release run fails with a
@@ -32,8 +33,8 @@ consent behavior.
 ## Validate before publishing
 
 Open **Actions > Upload to the D2RLoader Plugin Hub > Run workflow** on the main
-branch. A manual run builds, tests and packages only. It never runs the Hub
-upload job and needs neither the Hub token nor the project ID. Download the
+branch, leaving **release_tag** blank. This builds, tests and packages only,
+without running the Hub upload job or requiring Hub credentials. Download the
 package artifact from the completed run to inspect its contents.
 
 ## Publish a subsequent version
@@ -50,3 +51,13 @@ publishing a prerelease also triggers the sample's `release: published` event.
 Pushing a tag by itself does not upload anything. If configuration was missing,
 add it and rerun the failed job. Avoid rerunning an upload that already succeeded:
 the POST has no automatic retry, so duplicate-version behavior is left to the Hub.
+
+## Retry after fixing a publishing workflow
+
+If an upload failed before creating the Hub version, run the workflow on
+**main** and enter the existing published release tag (for example, `v0.7.0`)
+in **release_tag**. This uses the corrected workflow from main while building
+the tagged source. It validates that the published release and DLL versions
+match, reads that release's changelog, and uploads the native ZIP. It does not
+change the Hub name, summary or description. Leave the tag blank for build-only
+runs. Do not use this retry for a version already successfully uploaded.
