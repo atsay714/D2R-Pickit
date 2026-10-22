@@ -6,6 +6,8 @@ namespace LoaderFixture {
 inline std::string ConfigText;
 inline bool Compatible{true};
 inline unsigned Checks{}, Patches{}, InlineHooks{}, Listeners{};
+inline bool LifecycleAvailable{true};
+inline unsigned FailListener{}, Unsubscribed{};
 inline void __cdecl Log(const D2RL::PluginContext*, const char*) noexcept {}
 inline bool __cdecl Read(const D2RL::PluginContext*, char* out, std::uint32_t size, std::uint32_t* required) noexcept {
     *required = static_cast<std::uint32_t>(ConfigText.size() + 1);
@@ -18,20 +20,23 @@ inline bool __cdecl Hook(const D2RL::PluginContext*, const D2RL::InlineHookRegis
 inline bool __cdecl Command(const D2RL::PluginContext*, const D2RL::ConsoleCommandRegistration*) noexcept { return true; }
 inline D2RL::Threads::Result __cdecl Queue(const D2RL::PluginContext*, D2RL::Threads::Callback, void*) noexcept { return D2RL::Threads::Result::Success; }
 inline D2RL::Lifecycle::Result __cdecl Subscribe(const D2RL::PluginContext*, const D2RL::Lifecycle::GameplayEventListener*, D2RL::Lifecycle::ListenerHandle* handle) noexcept {
-    *handle = ++Listeners; return D2RL::Lifecycle::Result::Success;
+    ++Listeners;
+    if (Listeners == FailListener) return D2RL::Lifecycle::Result::Unavailable;
+    *handle = Listeners; return D2RL::Lifecycle::Result::Success;
 }
-inline D2RL::Lifecycle::Result __cdecl Unsubscribe(const D2RL::PluginContext*, D2RL::Lifecycle::ListenerHandle) noexcept { return D2RL::Lifecycle::Result::Success; }
+inline D2RL::Lifecycle::Result __cdecl Unsubscribe(const D2RL::PluginContext*, D2RL::Lifecycle::ListenerHandle) noexcept { ++Unsubscribed; return D2RL::Lifecycle::Result::Success; }
 inline const D2RL::ThreadServiceV1 Threads{D2RL::ThreadServiceV1Size, D2RL::ThreadServiceV1Version, nullptr, Queue};
 inline const D2RL::LifecycleServiceV1 Lifecycle{D2RL::LifecycleServiceV1Size, D2RL::LifecycleServiceV1Version, nullptr, nullptr, Subscribe, Unsubscribe};
 inline D2RL::ServiceQueryResult __cdecl Query(const D2RL::PluginContext*, D2RL::ServiceId id, std::uint32_t, const void** service) noexcept {
     if (id == D2RL::ServiceId::Thread) { *service = &Threads; return D2RL::ServiceQueryResult::Success; }
-    if (id == D2RL::ServiceId::Lifecycle) { *service = &Lifecycle; return D2RL::ServiceQueryResult::Success; }
+    if (id == D2RL::ServiceId::Lifecycle && LifecycleAvailable) { *service = &Lifecycle; return D2RL::ServiceQueryResult::Success; }
     *service = nullptr; return D2RL::ServiceQueryResult::Unavailable;
 }
 inline D2RL::PluginApi Api{};
 inline D2RL::PluginContext Context{};
 inline auto Setup(const std::string& text, bool compatible) -> const D2RL::PluginContext* {
     ConfigText = text; Compatible = compatible; Checks = Patches = InlineHooks = Listeners = 0;
+    LifecycleAvailable = true; FailListener = Unsubscribed = 0;
     Api = {}; Api.apiSize = D2RL::PluginApiSize;
     Api.logInfo = Log; Api.logWarn = Log; Api.logError = Log;
     Api.readConfig = Read; Api.checkExpectedBytes = Check; Api.patchWrite = Patch;

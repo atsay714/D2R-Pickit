@@ -14,9 +14,10 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def write_zip(path, files):
+def write_zip(path, files, checksums_path='SHA256SUMS.txt'):
     files = dict(files)
-    files['SHA256SUMS.txt'] = ''.join(f'{digest(data)}  {name}\n' for name, data in sorted(files.items())).encode()
+    assert checksums_path not in files
+    files[checksums_path] = ''.join(f'{digest(data)}  {name}\n' for name, data in sorted(files.items())).encode()
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as archive:
         for name, data in sorted(files.items()):
             entry = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
@@ -28,6 +29,17 @@ def write_zip(path, files):
         assert set(archive.namelist()) == set(files)
         for name, data in files.items():
             assert archive.read(name) == data
+
+
+def verify_install_layout(path, scope, plugin_id, dll_name, config_name):
+    docs = f'{scope}/plugins/{plugin_id}.docs/'
+    payload = {f'{scope}/plugins/{dll_name}', f'{scope}/config/{config_name}'}
+    with zipfile.ZipFile(path) as archive:
+        names = archive.namelist()
+        assert len({name.casefold() for name in names}) == len(names), 'Windows path collision'
+        assert payload <= set(names), 'Missing DLL or config'
+        assert {docs + name for name in ('plugin.json', 'LICENSE', 'README.md', 'SHA256SUMS.txt')} <= set(names)
+        assert all(name in payload or name.startswith(docs) for name in names), 'Unowned/shared installation path'
 
 
 def main():
@@ -73,13 +85,20 @@ def main():
     outputs = []
     for variant, scope in [('native', 'd2rloader'), ('reimagined', f'mods/{args.mod_name}/d2rloader')]:
         path = args.output_dir / f'{plugin_id}-v{version}-{variant}.zip'
-        write_zip(path, {**common, f'{scope}/plugins/{dll_name}': dll.read_bytes(), f'{scope}/config/{config_name}': config})
+        # Installer payloads may share one destination. Keep every supporting
+        # file, including metadata and checksums, inside this plugin's namespace.
+        docs = f'{scope}/plugins/{plugin_id}.docs'
+        write_zip(path, {**{f'{docs}/{name}': data for name, data in common.items()},
+                        f'{scope}/plugins/{dll_name}': dll.read_bytes(),
+                        f'{scope}/config/{config_name}': config},
+                  checksums_path=f'{docs}/SHA256SUMS.txt')
+        verify_install_layout(path, scope, plugin_id, dll_name, config_name)
         outputs.append(path)
     source = {}
     for name in ('CMakeLists.txt', 'README.md', 'BUILDING.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md',
                  'UPSTREAM.md', 'CHANGELOG.md', 'RELEASING.md', 'plugin.json', 'build.cmd', 'package.py', '.gitignore', '.gitattributes'):
         source[name] = (ROOT / name).read_bytes()
-    for name in ('prepare.py', 'catalog.json'):
+    for name in ('prepare.py', 'catalog.json', 'HUB_LISTING.md'):
         if (ROOT / name).exists():
             source[name] = (ROOT / name).read_bytes()
     for folder in ('src', 'config', 'tests', 'third_party', '.github'):

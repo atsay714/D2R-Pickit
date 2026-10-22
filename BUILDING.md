@@ -28,6 +28,11 @@ The tests use injected native functions and loader fixtures. They do not launch
 D2R or call game addresses. Live-game behavior and multiplayer need separate
 qualification; passing tests is not a claim that every D2R build is supported.
 
+Five suites cover configuration/selection, DLL and bridge ABI, activation and
+session subscriptions, collector behavior, and retry timing. Collector tests
+exercise the walking hook and both teleport bridge versions, including a
+refused nearest item followed by a different successful pickup.
+
 ## Package
 
 ```bat
@@ -40,6 +45,11 @@ Each ZIP includes SHA-256 checksums, documentation, and dependency license
 notices. `dist/SHA256SUMS.txt` hashes the ZIPs themselves. The source ZIP can
 build and test independently. Packages never include developer build output,
 logs, character saves, credentials or publishing tokens.
+
+Each installation ZIP stores supporting files and its internal `SHA256SUMS.txt`
+under `<scope>/plugins/<plugin-id>.docs/`. The DLL and TOML keep their normal
+paths. No shared root metadata names are installed by binary packages. The
+source ZIP retains its normal source-tree layout and root checksum manifest.
 
 For a different build or output directory, pass `--build-dir` or `--output-dir`.
 `--mod-name` changes the mod folder in the mod-layout ZIP; the default is

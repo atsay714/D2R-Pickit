@@ -1,26 +1,54 @@
 #include "../src/plugin.cpp"
 #include <iostream>
+#include <vector>
 namespace {
-int failures{}, requests{};
+int failures{};
 std::uint32_t ExpectedDistance = 4;
 #define CHECK(x) do { if (!(x)) { std::cerr << "Failed line " << __LINE__ << ": " #x "\n"; ++failures; } } while (false)
-struct Unit { std::uint32_t type{}, id{}, code{}; std::int32_t distance{}; bool blocked{}; } Player, Item;
+struct Unit {
+    std::uint32_t type{}, id{}, code{};
+    std::int32_t distance{};
+    bool blocked{};
+    std::uint32_t mode{3};
+    Unit* next{};
+    bool accepts{true}, removes{true}, faults{};
+} Player, Item, Other, Third;
+Unit* FirstItem = &Item;
+void* ExpectedPlayer = &Player;
 int Room{};
 void* Rooms[]{&Room};
-bool NativeAccepts{true};
+std::vector<std::uint32_t> Requests;
+bool ResetSessionDuringScan{};
 void* __fastcall RoomOf(void*) { return &Room; }
 void __fastcall Neighbours(void*, void*** out, std::uint32_t* count) { *out = Rooms; *count = 1; }
-void* __fastcall First(void*) { return &Item; }
-void* __fastcall Next(void*) { return nullptr; }
+void* __fastcall First(void*) { return FirstItem; }
+void* __fastcall Next(void* unit) { return static_cast<Unit*>(unit)->next; }
 std::uint32_t __fastcall Type(void* unit) { return static_cast<Unit*>(unit)->type; }
 std::uint32_t __fastcall Id(void* unit) { return static_cast<Unit*>(unit)->id; }
-std::uint32_t __fastcall Code(void* unit) { return static_cast<Unit*>(unit)->code; }
-std::uint32_t __fastcall Mode(void*) { return 3; }
+std::uint32_t __fastcall Code(void* unit) {
+    if (ResetSessionDuringScan) {
+        ResetSessionDuringScan = false;
+        RuffnecKk::AutoPickup::ResetItemRetries();
+    }
+    return static_cast<Unit*>(unit)->code;
+}
+std::uint32_t __fastcall Mode(void* unit) { return static_cast<Unit*>(unit)->mode; }
 std::int32_t __fastcall Distance(void*, void* item) { return static_cast<Unit*>(item)->distance; }
 std::int32_t __fastcall Collision(void*, void* item, std::uint32_t) { return static_cast<Unit*>(item)->blocked ? 1 : 0; }
 bool __fastcall Request(void* player, std::uint32_t id, bool ordinary, std::uint32_t distance, bool normal, bool extra) {
-    CHECK(player == &Player && id == Item.id && ordinary && normal && !extra && distance == ExpectedDistance);
-    ++requests; return NativeAccepts;
+    CHECK(player == ExpectedPlayer && ordinary && normal && !extra && distance == ExpectedDistance);
+    Requests.push_back(id);
+    auto* item = FirstItem;
+    while (item && item->id != id) item = item->next;
+    CHECK(item != nullptr);
+    if (!item) return false;
+    if (item->faults) RaiseException(EXCEPTION_ACCESS_VIOLATION, 0, 0, nullptr);
+    if (item->accepts && item->removes) item->mode = 1;
+    return item->accepts;
+}
+auto __fastcall OriginalMovement(void*, void*, void*, std::int32_t) -> std::int64_t { return 17; }
+void FreshItem(std::uint32_t id, std::uint32_t code, std::int32_t distance = 0) {
+    Item = {4, id, code, distance}; FirstItem = &Item;
 }
 }
 int main() {
@@ -28,38 +56,98 @@ int main() {
     GetUnitRoom = RoomOf; GetRoomNeighbours = Neighbours; GetRoomFirstUnit = First; GetNextUnit = Next;
     UnitType = Type; UnitId = Id; UnitMode = Mode; GetItemCode = Code;
     UnitDistance = Distance; UnitCollision = Collision; Pickup = Request;
-    Player = {0, 1}; Item = {4, 2, PackItemCode("r01")};
-    Settings = {}; Scan(&Player); CHECK(requests == 1 && Metrics.picked.load() == 1);
-    Item.code = PackItemCode("ka3"); Scan(&Player); CHECK(requests == 1);
-    Item.code = PackItemCode("hp5"); Scan(&Player); CHECK(requests == 1);
+    Player = {0, 1}; Settings = {}; ResetItemRetries();
+    FreshItem(10, PackItemCode("r01")); Scan(&Player, 4, 100);
+    CHECK(Requests.size() == 1 && Metrics.picked.load() == 1);
+    FreshItem(11, PackItemCode("ka3")); Scan(&Player, 4, 100); CHECK(Requests.size() == 1);
+    FreshItem(12, PackItemCode("hp5")); Scan(&Player, 4, 100); CHECK(Requests.size() == 1);
     std::string error;
     CHECK(ParseConfig("[vanilla]\nhealth_potions = true", Settings, error));
-    Scan(&Player); CHECK(requests == 2); // Same ordinary native request as a rune.
-    Item.blocked = true; Scan(&Player); CHECK(requests == 2);
-    Item.blocked = false; Item.distance = 5; Scan(&Player); CHECK(requests == 2);
-    Item.distance = 4; NativeAccepts = false; Scan(&Player);
-    CHECK(requests == 3 && Metrics.refused.load() == 1); // No forced placement or fallback retry.
-    NativeAccepts = true; ScanApiReady = true; Item.distance = 8;
-    CHECK(ExternalScan(&Player)); CHECK(requests == 3); // V1 stays at normal movement radius.
-    ExpectedDistance = 8;
-    CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 4);
-    Item.distance = 9; CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 4);
-    CHECK(!ExternalRangeScan(&Player, 0) && !ExternalRangeScan(&Player, 21));
-    CHECK(requests == 4);
-    ExpectedDistance = 4; Item.distance = 4; Scan(&Player); CHECK(requests == 5); // External call never changes movement range.
+    Item.blocked = true; Scan(&Player, 4, 100); CHECK(Requests.size() == 1);
+    Item.blocked = false; Item.distance = 5; Scan(&Player, 4, 100); CHECK(Requests.size() == 1);
+    Item.distance = 4; Scan(&Player, 4, 100); CHECK(Requests.size() == 2);
+
+    // A refused nearest item cannot starve another item. Successful removals
+    // remain eligible in adjacent scans, with no player-wide pickup delay.
+    FreshItem(20, PackItemCode("r01"), 1); Item.accepts = false;
+    Other = {4, 21, PackItemCode("r02"), 2}; Item.next = &Other;
+    Scan(&Player, 4, 100); CHECK(Requests.size() == 3 && Requests.back() == 20);
+    Scan(&Player, 4, 101); CHECK(Requests.size() == 4 && Requests.back() == 21);
+    Scan(&Player, 4, 1099); CHECK(Requests.size() == 4);
+    Scan(&Player, 4, 1100); CHECK(Requests.size() == 5 && Requests.back() == 20);
+    Item.accepts = true; Scan(&Player, 4, 1101); CHECK(Requests.size() == 5);
+    Scan(&Player, 4, 2100); CHECK(Requests.size() == 6 && Item.mode == 1); // Space became available.
+
+    // Native success does not prove the item left the ground (mod hooks can
+    // defer work). Never dereference that item after the native request.
+    FreshItem(30, PackItemCode("r03")); Item.removes = false;
+    Scan(&Player, 4, 2200); Scan(&Player, 4, 2201); CHECK(Requests.size() == 7);
+    Scan(&Player, 4, 3200); CHECK(Requests.size() == 8);
+    Item.faults = true; Scan(&Player, 4, 4200); CHECK(Requests.size() == 9);
+    Item.faults = false; Scan(&Player, 4, 4201); CHECK(Requests.size() == 9);
+
+    Unit anotherPlayer{0, 2}; ExpectedPlayer = &anotherPlayer;
+    Scan(&anotherPlayer, 4, 4202); CHECK(Requests.size() == 10); // Retry ownership is per player.
+    ExpectedPlayer = &Player;
+    Item.id = 31; Scan(&Player, 4, 4203); CHECK(Requests.size() == 11);
+    Item.code = PackItemCode("r04"); Scan(&Player, 4, 4204); CHECK(Requests.size() == 12);
+    Player.id = UINT32_MAX; Scan(&Player, 4, 4205); CHECK(Requests.size() == 12);
+    Player.id = 1; Item.id = UINT32_MAX; Scan(&Player, 4, 4206); CHECK(Requests.size() == 12);
+
     CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"r01\"]", Settings, error));
-    Item.code = PackItemCode("jew"); Scan(&Player); CHECK(requests == 6);
-    Item.code = PackItemCode("r01"); Scan(&Player); CHECK(requests == 6);
-    CHECK(ExternalScan(&Player)); CHECK(requests == 6); // The V1 bridge honors exclusions too.
-    Item.code = PackItemCode("jew"); CHECK(ExternalScan(&Player)); CHECK(requests == 7);
-    Item.distance = 8; ExpectedDistance = 8;
-    CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 8); // Teleport's V2 bridge uses the custom policy.
+    FreshItem(40, PackItemCode("r01")); Scan(&Player, 4, 4300); CHECK(Requests.size() == 12);
+    Item.code = PackItemCode("jew"); Scan(&Player, 4, 4300); CHECK(Requests.size() == 13);
+    FreshItem(41, PackItemCode("gld")); Scan(&Player, 4, 4300); CHECK(Requests.size() == 13);
+
+    // Exercise the actual walking hook and both exported teleport scan paths.
+    ResetItemRetries(); ScanApiReady = true; Settings = {};
+    FreshItem(50, PackItemCode("r01"), 1); Item.accepts = false;
+    Other = {4, 51, PackItemCode("r02"), 2}; Third = {4, 52, PackItemCode("r03"), 8};
+    Item.next = &Other; Other.next = &Third;
+    OriginalTriggers[1] = OriginalMovement; std::uint8_t opcode = 1;
+    CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17);
+    CHECK(Requests.size() == 14 && Requests.back() == 50);
+    CHECK(ExternalScan(&Player)); CHECK(Requests.size() == 15 && Requests.back() == 51);
+    CHECK(ExternalScan(&Player)); CHECK(Requests.size() == 15); // Same cooldown for walk and V1.
+    ExpectedDistance = 8;
+    CHECK(ExternalRangeScan(&Player, 8)); CHECK(Requests.size() == 16 && Requests.back() == 52);
+    CHECK(ExternalRangeScan(&Player, 8)); CHECK(Requests.size() == 16); // V2 cannot bypass it either.
+    CHECK(!ExternalRangeScan(&Player, 0) && !ExternalRangeScan(&Player, 21));
+    ExpectedDistance = 4;
+    FreshItem(53, PackItemCode("r04"), 8); Scan(&Player); CHECK(Requests.size() == 16);
+    Item.distance = 4; Scan(&Player); CHECK(Requests.size() == 17); // Movement radius unchanged.
+
+    FreshItem(60, PackItemCode("r01")); Item.accepts = false;
+    ResetItemRetries(); Scan(&Player, 4, 5000); CHECK(Requests.size() == 18);
+    Scan(&Player, 4, 5001); CHECK(Requests.size() == 18);
+    D2RL::Lifecycle::GameplayEvent event{D2RL::Lifecycle::GameplayEventRequiredSize, 0, D2RL::Lifecycle::GameplayEventKind::GameLeft, Player.id, 2, 0, 0};
+    OnRetrySessionEvent(nullptr, &event, nullptr);
+    Scan(&Player, 4, 5002); CHECK(Requests.size() == 19); // New sessions can reuse item/player IDs.
+    event.structSize = 0; OnRetrySessionEvent(nullptr, &event, nullptr);
+    Scan(&Player, 4, 5003); CHECK(Requests.size() == 19);
+    Settings.enabled = false; Scan(&Player, 4, 6002); CHECK(Requests.size() == 19);
+    CHECK(Metrics.retrySkips.load() > 0 && Metrics.exceptions.load() == 1);
+    Settings.enabled = true; ResetSessionDuringScan = true;
+    FreshItem(70, PackItemCode("r01"));
+    Scan(&Player, 4, 7000); CHECK(Requests.size() == 19); // A stale scan must not re-arm state after a session reset.
+    Scan(&Player, 4, 7001); CHECK(Requests.size() == 20);
+    ResetItemRetries();
+    CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"r01\"]", Settings, error));
+    FreshItem(80, PackItemCode("jew"), 8); Item.accepts = false;
+    ScanApiReady = true; ExpectedDistance = 8;
+    CHECK(ExternalRangeScan(&Player, 8)); CHECK(Requests.size() == 21);
+    Item.distance = 4; ExpectedDistance = 4;
+    CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17);
+    CHECK(ExternalScan(&Player) && Requests.size() == 21); // Teleport failures also suppress walking/V1 retries.
+    Other = {4, 81, PackItemCode("r01"), 0}; Item.next = &Other;
+    CHECK(ExternalScan(&Player) && Requests.size() == 21); // Exclusions still apply through the bridge.
+    Other.code = PackItemCode("jew");
+    CHECK(ExternalScan(&Player) && Requests.size() == 22 && Requests.back() == 81);
     CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"jew\"]", Settings, error));
-    CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 8);
-    Item.distance = 4; ExpectedDistance = 4; Scan(&Player); CHECK(requests == 8);
-    CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]", Settings, error));
-    NativeAccepts = false; Scan(&Player); CHECK(requests == 9 && Metrics.refused.load() == 2);
-    NativeAccepts = true; Settings.enabled = false; Scan(&Player); CHECK(requests == 9);
-    std::cout << "Selected items use the same native request; unselected/mod items, collisions and distance rejected; native refusal preserved; failures: " << failures << '\n';
+    FreshItem(82, PackItemCode("jew"), 8);
+    CHECK(ExternalRangeScan(&Player, 8) && Requests.size() == 22);
+    ResetRuntime();
+    CHECK(!ScanApiReady && ItemRetries.Ready({1, 60, PackItemCode("r01")}, 6002));
+    std::cout << "Native selection and placement, failed/no-progress/exception retries, other-item fairness, walking/V1/V2 shared state, session/player isolation; failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

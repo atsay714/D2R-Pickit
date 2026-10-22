@@ -6,7 +6,7 @@ Custom include/exclude lists let you choose additional items by their exact code
 The plugin works with vanilla D2R and includes explicit Reimagined item codes.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.7.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
+**Version:** 0.7.1 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -31,10 +31,16 @@ by the loader; copy new settings deliberately when upgrading.
 DLL: `d2rl-auto-pickup-anything.dll`  
 Config: `d2rloader/config/auto-pickup-anything.toml` in the selected scope.
 
+Installation ZIPs keep their metadata, documentation, licenses and checksums
+under `d2rloader/plugins/auto-pickup-anything.docs/` in the selected scope. No
+generic `plugin.json` or other supporting file is placed at the ZIP root, so
+multiple plugins can be installed together without those files colliding.
+The source ZIP is for building, not installation.
+
 ## Configuration
 
 ```toml
-# Auto Pickup Anything 0.7.0
+# Auto Pickup Anything 0.7.1
 # Active immediately on a compatible D2RLoader runtime. Restart after edits.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.
@@ -134,6 +140,19 @@ There is no movement-radius setting, forced placement or inventory sweep.
 This is a separate collector; exact vanilla auto-gold selection parity is
 unverified.
 
+After a pickup request, the same item is skipped for one second for that player
+if it is still on the ground. This covers refused requests, native exceptions,
+and reported successes that leave the item behind. Other items remain eligible
+on subsequent scans, so an uncollectable nearest item does not hold up the rest.
+Successfully collected items disappear from the scan without delaying other
+pickups. The cooldown is automatic and requires no configuration changes.
+
+Walking and both Teleport Auto Pickup scan APIs share this cooldown. Retry
+state contains player/item IDs and item codes, not stored native pointers, and
+resets on game join/leave, local-player readiness, and plugin unload. A full
+inventory does not stop all item attempts: native stacking or Auto Deposit may
+still accept an item. The plugin preserves those normal pickup paths.
+
 [Teleport Auto Pickup](https://github.com/atsay714/d2rl-teleport-auto-pickup)
 can request the same item selection after casts, including both custom lists.
 Pair them to collect nearby selected loot after teleporting without taking
@@ -149,6 +168,7 @@ Deposit, and no bag transaction logic is embedded here.
 
 Console command: `auto-pickup`. Log: the selected scope's
 `d2rloader/logs/auto-pickup-anything.log`.
+The status output includes `retry-skips` for items temporarily skipped.
 
 ## Troubleshooting and removal
 

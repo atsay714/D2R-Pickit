@@ -17,8 +17,10 @@ int main(int argc, char** argv) {
     CHECK(!Settings.validateOnly && Settings.enabled);
     CHECK(LoaderFixture::Patches == 4 && LoaderFixture::Checks > 10);
     CHECK(LoaderFixture::InlineHooks == 0);
+    CHECK(LoaderFixture::Listeners == 3);
     CHECK(!D2RL::HasFlag(D2RLoaderGetPluginInfo()->flags, D2RL::PluginFlags::ModScopedOnly));
     D2RLoaderUnloadPlugin();
+    CHECK(LoaderFixture::Unsubscribed == 3 && !RetryLifecycle);
     auto custom = text;
     const auto includeAt = custom.find("\ninclude = []"), excludeAt = custom.find("\nexclude = []");
     CHECK(includeAt != std::string::npos && excludeAt != std::string::npos);
@@ -42,6 +44,15 @@ int main(int argc, char** argv) {
     context = LoaderFixture::Setup(diagnostic, true);
     CHECK(D2RLoaderLoadPlugin(context));
     CHECK(Settings.validateOnly && LoaderFixture::Patches == 0 && LoaderFixture::Checks > 10);
+    CHECK(LoaderFixture::Listeners == 0 && !ScanApiReady);
+    D2RLoaderUnloadPlugin();
+    context = LoaderFixture::Setup(text, true); LoaderFixture::LifecycleAvailable = false;
+    CHECK(!D2RLoaderLoadPlugin(context));
+    CHECK(LoaderFixture::Patches == 0 && !ScanApiReady);
+    D2RLoaderUnloadPlugin();
+    context = LoaderFixture::Setup(text, true); LoaderFixture::FailListener = 2;
+    CHECK(!D2RLoaderLoadPlugin(context));
+    CHECK(LoaderFixture::Patches == 0 && !ScanApiReady && LoaderFixture::Unsubscribed == 1);
     D2RLoaderUnloadPlugin();
     std::cout << "Default config activates unchanged; incompatible native fingerprint blocks patches; diagnostic-only mode remains optional; failures: " << failures << '\n';
     return failures ? 1 : 0;

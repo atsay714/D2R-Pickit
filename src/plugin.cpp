@@ -5,6 +5,7 @@
 #include "compatibility.hpp"
 #include "pickup_bridge.hpp"
 #include "action_hooks.hpp"
+#include "item_retry.hpp"
 #include <array>
 #include <atomic>
 #include <climits>
@@ -32,12 +33,17 @@ PickupFn Pickup{};
 GetItemCodeFn GetItemCode{};
 std::mutex ScanApiMutex;
 bool ScanApiReady{};
+ItemRetryCooldown ItemRetries;
+std::mutex ItemRetryMutex;
+std::uint64_t RetryEpoch{};
+const D2RL::LifecycleServiceV1* RetryLifecycle{};
+std::array<D2RL::Lifecycle::ListenerHandle, 3> RetryListeners{};
 struct RuntimeMetrics {
-    std::atomic<std::uint64_t> actions{}, scans{}, attempts{}, picked{}, refused{}, external{}, exceptions{};
+    std::atomic<std::uint64_t> actions{}, scans{}, attempts{}, picked{}, refused{}, external{}, exceptions{}, retrySkips{};
 } Metrics;
 constexpr D2RL::PluginInfo Info{
     .infoSize = D2RL::PluginInfoSize, .apiVersion = D2RL_PLUGIN_API_VERSION,
-    .id = "auto-pickup-anything", .name = "Auto Pickup Anything", .version = "0.7.0",
+    .id = "auto-pickup-anything", .name = "Auto Pickup Anything", .version = "0.7.1",
     .author = "atsay714",
     .description = "Selects items for nearby automatic pickup; normal game stacking and placement.",
     .flags = D2RL::PluginFlags::Shared | D2RL::PluginFlags::NativeHooks,
@@ -55,32 +61,89 @@ auto ReadConfiguration() -> bool {
     Settings = parsed; return true;
 }
 
-void Scan(void* player, std::uint32_t distanceLimit = StandardPickupDistance) noexcept {
+auto CurrentRetryEpoch() noexcept -> std::uint64_t {
+    std::lock_guard lock(ItemRetryMutex);
+    return RetryEpoch;
+}
+auto ItemReady(PickupIdentity key, std::uint64_t now, std::uint64_t epoch) noexcept -> bool {
+    std::lock_guard lock(ItemRetryMutex);
+    return epoch == RetryEpoch && ItemRetries.Ready(key, now);
+}
+auto BeginItemRequest(PickupIdentity key, std::uint64_t now, std::uint64_t epoch) noexcept -> bool {
+    std::lock_guard lock(ItemRetryMutex);
+    return epoch == RetryEpoch && ItemRetries.TryArm(key, now);
+}
+void ResetItemRetries() noexcept {
+    std::lock_guard lock(ItemRetryMutex);
+    ++RetryEpoch;
+    ItemRetries.Reset();
+}
+void __cdecl OnRetrySessionEvent(const D2RL::PluginContext*, const D2RL::Lifecycle::GameplayEvent* event, void*) noexcept {
+    if (D2RL::Lifecycle::HasGameplayEventField(event, D2RL::Lifecycle::GameplayEventRequiredSize)) ResetItemRetries();
+}
+void StopRetryLifecycle() noexcept {
+    if (RetryLifecycle && Context) for (auto& handle : RetryListeners) {
+        if (handle) RetryLifecycle->unregisterGameplayEventListener(Context, handle);
+        handle = 0;
+    }
+    RetryLifecycle = nullptr;
+}
+auto PrepareRetryLifecycle(bool registerListeners) noexcept -> bool {
+    if (Context->QueryService(D2RL::ServiceId::Lifecycle, D2RL::LifecycleServiceV1Version, &RetryLifecycle) != D2RL::ServiceQueryResult::Success
+        || !D2RL::HasLifecycleServiceV1Field(RetryLifecycle, D2RL::LifecycleServiceV1RequiredSize)
+        || !RetryLifecycle->registerGameplayEventListener || !RetryLifecycle->unregisterGameplayEventListener) {
+        Context->LogError("AutoPickupAnything: item retry state needs session-event services; no hooks installed.");
+        RetryLifecycle = nullptr; return false;
+    }
+    if (!registerListeners) return true;
+    constexpr std::array kinds{D2RL::Lifecycle::GameplayEventKind::GameJoined,
+        D2RL::Lifecycle::GameplayEventKind::GameLeft, D2RL::Lifecycle::GameplayEventKind::LocalPlayerReady};
+    for (std::size_t i = 0; i < kinds.size(); ++i) {
+        const D2RL::Lifecycle::GameplayEventListener listener{D2RL::Lifecycle::GameplayEventListenerSize, 0, kinds[i], 0, OnRetrySessionEvent, nullptr};
+        if (RetryLifecycle->registerGameplayEventListener(Context, &listener, &RetryListeners[i]) != D2RL::Lifecycle::Result::Success) {
+            StopRetryLifecycle();
+            Context->LogError("AutoPickupAnything: session subscription failed; no hooks installed."); return false;
+        }
+    }
+    return true;
+}
+
+void Scan(void* player, std::uint32_t distanceLimit = StandardPickupDistance, std::uint64_t now = GetTickCount64()) noexcept {
     if (!Settings.enabled || Settings.validateOnly || !player) return;
     if (distanceLimit < 1 || distanceLimit > Reimagined::PickupBridge::MaximumPickupDistance) return;
+    const auto epoch = CurrentRetryEpoch();
     __try {
         Metrics.scans.fetch_add(1, std::memory_order_relaxed);
         auto* room = GetUnitRoom(player);
         if (!room || UnitType(player) != 0) return;
+        const auto playerId = UnitId(player);
+        if (playerId == UINT32_MAX) return;
         void** rooms{}; std::uint32_t count{};
         GetRoomNeighbours(room, &rooms, &count);
         if (!rooms || !count || count > 4096) return;
-        void* selected{}; std::int32_t nearest = INT_MAX; std::size_t visited{};
+        PickupIdentity selected{}; bool found{}; std::int32_t nearest = INT_MAX; std::size_t visited{};
         for (std::uint32_t i = 0; i < count; ++i) for (void* unit = GetRoomFirstUnit(rooms[i]); unit; unit = GetNextUnit(unit)) {
             if (++visited > 262144) return;
-            if (UnitType(unit) != ItemType || UnitMode(unit) != GroundMode || !Settings.Selects(GetItemCode(unit))) continue;
+            if (UnitType(unit) != ItemType || UnitMode(unit) != GroundMode) continue;
+            const auto code = GetItemCode(unit);
+            if (!Settings.Selects(code)) continue;
             const auto distance = UnitDistance(player, unit);
             if (distance < 0 || static_cast<std::uint32_t>(distance) > distanceLimit
                 || distance >= nearest || UnitCollision(player, unit, PickupCollisionMask) != 0) continue;
-            selected = unit; nearest = distance;
+            const PickupIdentity candidate{playerId, UnitId(unit), code};
+            if (!candidate.Valid()) continue;
+            if (!ItemReady(candidate, now, epoch)) { Metrics.retrySkips.fetch_add(1, std::memory_order_relaxed); continue; }
+            selected = candidate; found = true; nearest = distance;
         }
-        if (!selected) return;
-        const auto id = UnitId(selected);
-        if (id == UINT32_MAX) return;
+        if (!found) return;
+        // Arm every request before native code: false, an exception, or a
+        // reported success that leaves the item on the ground all need a delay.
+        // Successful removals disappear from enumeration; other items stay ready.
+        if (!BeginItemRequest(selected, now, epoch)) { Metrics.retrySkips.fetch_add(1, std::memory_order_relaxed); return; }
         Metrics.attempts.fetch_add(1, std::memory_order_relaxed);
         // This is the ordinary native request. No belt hook, destination
         // override, inventory fallback, stack manipulation or deposit call.
-        const bool picked = Pickup(player, id, true, distanceLimit, true, false);
+        const bool picked = Pickup(player, selected.item, true, distanceLimit, true, false);
         (picked ? Metrics.picked : Metrics.refused).fetch_add(1, std::memory_order_relaxed);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         const auto n = Metrics.exceptions.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -142,21 +205,23 @@ auto InstallMutations() noexcept -> bool {
 
 auto Status(D2R::Game::Client*, const D2RL::ConsoleCommandContext* command, void*) noexcept -> D2RL::ConsoleCommandResult {
     if (!command || !command->plugin) return D2RL::ConsoleCommandResult::Failed;
-    char message[384]{};
-    std::snprintf(message, sizeof(message), "Auto Pickup Anything 0.7.0: enabled=%s; validation-only=%s; scans=%llu; attempts=%llu; picked=%llu; refused=%llu; external-scans=%llu; exceptions=%llu.",
+    char message[448]{};
+    std::snprintf(message, sizeof(message), "Auto Pickup Anything 0.7.1: enabled=%s; validation-only=%s; scans=%llu; attempts=%llu; picked=%llu; refused=%llu; external-scans=%llu; exceptions=%llu; retry-skips=%llu.",
         Settings.enabled ? "true" : "false", Settings.validateOnly ? "true" : "false",
         static_cast<unsigned long long>(Metrics.scans.load()), static_cast<unsigned long long>(Metrics.attempts.load()),
         static_cast<unsigned long long>(Metrics.picked.load()), static_cast<unsigned long long>(Metrics.refused.load()),
-        static_cast<unsigned long long>(Metrics.external.load()), static_cast<unsigned long long>(Metrics.exceptions.load()));
+        static_cast<unsigned long long>(Metrics.external.load()), static_cast<unsigned long long>(Metrics.exceptions.load()),
+        static_cast<unsigned long long>(Metrics.retrySkips.load()));
     command->plugin->WriteConsoleMessage(message); return D2RL::ConsoleCommandResult::Handled;
 }
 void ResetRuntime() noexcept {
-    std::lock_guard lock(ScanApiMutex); ScanApiReady = false;
+    { std::lock_guard lock(ScanApiMutex); ScanApiReady = false; }
+    StopRetryLifecycle(); ResetItemRetries();
     OriginalTriggers.fill(nullptr); Settings = {};
     GetUnitRoom = nullptr; GetRoomNeighbours = nullptr; GetRoomFirstUnit = nullptr; GetNextUnit = nullptr;
     UnitType = nullptr; UnitId = nullptr; UnitMode = nullptr; UnitDistance = nullptr;
     UnitCollision = nullptr; Pickup = nullptr; GetItemCode = nullptr;
-    for (auto* n : {&Metrics.actions, &Metrics.scans, &Metrics.attempts, &Metrics.picked, &Metrics.refused, &Metrics.external, &Metrics.exceptions}) n->store(0);
+    for (auto* n : {&Metrics.actions, &Metrics.scans, &Metrics.attempts, &Metrics.picked, &Metrics.refused, &Metrics.external, &Metrics.exceptions, &Metrics.retrySkips}) n->store(0);
 }
 }
 D2RL_PLUGIN_EXPORT auto AutoPickupAnythingGetScanApi(std::uint32_t version, std::uint32_t size) noexcept -> const void* {
@@ -170,11 +235,12 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
     if (!Base || !ReadConfiguration()) return false;
     if (Settings.enabled) {
         if (!ValidateRuntime()) { context->LogError("AutoPickupAnything: compatibility check failed; no hooks installed."); return false; }
+        if (!PrepareRetryLifecycle(!Settings.validateOnly)) return false;
         if (Settings.validateOnly) context->LogInfo("AutoPickupAnything: VALIDATION PASSED; diagnostic mode, no hooks installed.");
         else {
-            ResolveRuntime(); if (!InstallMutations()) return false;
+            ResolveRuntime(); if (!InstallMutations()) { StopRetryLifecycle(); return false; }
             { std::lock_guard lock(ScanApiMutex); ScanApiReady = true; }
-            context->LogInfo("Auto Pickup Anything 0.7.0 active; item selection only, native stacking and placement.");
+            context->LogInfo("Auto Pickup Anything 0.7.1 active; item selection only, native stacking and placement.");
         }
     }
     if (!context->RegisterConsoleCommand("auto-pickup", Status, "Show item selection pickup counters.")) context->LogWarn("AutoPickupAnything: status command unavailable.");

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.1
+
+- Fix multi-plugin ZIP installation conflicts by placing metadata, docs, licenses and internal checksums in a plugin-specific folder.
+- Add an automatic one-second per-player, per-item retry cooldown shared by walking and Teleport Auto Pickup's V1/V2 scans.
+- Temporarily skip attempted items that remain on the ground, including refused requests, native exceptions, and reported successes with no removal.
+- Keep other eligible items moving through pickup instead of repeatedly selecting an uncollectable nearest item.
+- Reset retry state on session changes, local-player readiness, and unload; retain identities only, never item pointers between scans.
+- Preserve native stacking, placement and Auto Deposit integration without a blanket inventory-full check.
+- Keep selection defaults, custom include/exclude lists, pickup distances and config keys unchanged; add a retry-skips status counter.
+- Add tests for retry timing, item/player isolation, bounded-cache pressure, session cleanup and walking/teleport integration.
+
 ## 0.7.0
 
 - Restore optional `[item_codes].include` and `.exclude` arrays with empty defaults.
