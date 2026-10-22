@@ -1,5 +1,5 @@
 """Build deterministic, checksummed D2RLoader ZIPs from an existing Release DLL."""
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
 import json
@@ -31,15 +31,34 @@ def write_zip(path, files, checksums_path='SHA256SUMS.txt'):
             assert archive.read(name) == data
 
 
+def install_support_files(plugin_id):
+    # These are text documents, never runtime manifests or JSON patches.
+    # Give every leaf filename an owner: some importers flatten ZIP directories.
+    files = {f'{plugin_id}.{name}': (ROOT / name).read_bytes() for name in
+             ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md', 'CHANGELOG.md')}
+    for dependency in ('PluginSDK', 'RuffnecKkNativeStats'):
+        license_path = ROOT / 'third_party' / dependency / 'LICENSE'
+        if license_path.exists():
+            files[f'{plugin_id}.{dependency}.LICENSE.txt'] = license_path.read_bytes()
+    return files
+
+
 def verify_install_layout(path, scope, plugin_id, dll_name, config_name):
-    docs = f'{scope}/plugins/{plugin_id}.docs/'
+    docs = f'{scope}/docs/{plugin_id}/'
     payload = {f'{scope}/plugins/{dll_name}', f'{scope}/config/{config_name}'}
+    checksum = f'{docs}{plugin_id}.SHA256SUMS.txt'
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
         assert len({name.casefold() for name in names}) == len(names), 'Windows path collision'
+        leaves = [PurePosixPath(name).name.casefold() for name in names]
+        assert len(set(leaves)) == len(leaves), 'Flattened filename collision'
         assert payload <= set(names), 'Missing DLL or config'
-        assert {docs + name for name in ('plugin.json', 'LICENSE', 'README.md', 'SHA256SUMS.txt')} <= set(names)
-        assert all(name in payload or name.startswith(docs) for name in names), 'Unowned/shared installation path'
+        assert not any(name.casefold().endswith('.json') for name in names), 'Build JSON must stay in source ZIPs'
+        required = {docs + name for name in install_support_files(plugin_id)} | {checksum}
+        assert set(names) == payload | required, 'Unexpected or missing installation file'
+        assert all(PurePosixPath(name).name.startswith(plugin_id + '.') for name in names if name.startswith(docs)), 'Unowned supporting filename'
+        expected = ''.join(f'{digest(archive.read(name))}  {name}\n' for name in sorted(names) if name != checksum)
+        assert archive.read(checksum) == expected.encode(), 'Invalid internal checksums'
 
 
 def main():
@@ -77,21 +96,17 @@ def main():
         plugin_id, manifest['name'], version, manifest['author'])
     assert info.api == 3 and info.flags == 14
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    common = {name: (ROOT / name).read_bytes() for name in
-              ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md', 'CHANGELOG.md', 'plugin.json')}
-    common['THIRD_PARTY_LICENSES/PluginSDK.txt'] = (ROOT / 'third_party/PluginSDK/LICENSE').read_bytes()
-    if (ROOT / 'catalog.json').exists():
-        common['catalog.json'] = (ROOT / 'catalog.json').read_bytes()
+    common = install_support_files(plugin_id)
     outputs = []
     for variant, scope in [('native', 'd2rloader'), ('reimagined', f'mods/{args.mod_name}/d2rloader')]:
         path = args.output_dir / f'{plugin_id}-v{version}-{variant}.zip'
-        # Installer payloads may share one destination. Keep every supporting
-        # file, including metadata and checksums, inside this plugin's namespace.
-        docs = f'{scope}/plugins/{plugin_id}.docs'
+        # Preserve normal manual-extraction paths, and also avoid collisions
+        # if an importer discards the supporting documents' directories.
+        docs = f'{scope}/docs/{plugin_id}'
         write_zip(path, {**{f'{docs}/{name}': data for name, data in common.items()},
                         f'{scope}/plugins/{dll_name}': dll.read_bytes(),
                         f'{scope}/config/{config_name}': config},
-                  checksums_path=f'{docs}/SHA256SUMS.txt')
+                  checksums_path=f'{docs}/{plugin_id}.SHA256SUMS.txt')
         verify_install_layout(path, scope, plugin_id, dll_name, config_name)
         outputs.append(path)
     source = {}

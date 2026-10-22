@@ -1,4 +1,4 @@
-# Auto Pickup Anything 0.7.1
+# Auto Pickup Anything 0.7.2
 # Active immediately on a compatible D2RLoader runtime. Restart after edits.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.

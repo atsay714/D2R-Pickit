@@ -43,7 +43,7 @@ struct RuntimeMetrics {
 } Metrics;
 constexpr D2RL::PluginInfo Info{
     .infoSize = D2RL::PluginInfoSize, .apiVersion = D2RL_PLUGIN_API_VERSION,
-    .id = "auto-pickup-anything", .name = "Auto Pickup Anything", .version = "0.7.1",
+    .id = "auto-pickup-anything", .name = "Auto Pickup Anything", .version = "0.7.2",
     .author = "atsay714",
     .description = "Selects items for nearby automatic pickup; normal game stacking and placement.",
     .flags = D2RL::PluginFlags::Shared | D2RL::PluginFlags::NativeHooks,
@@ -206,7 +206,7 @@ auto InstallMutations() noexcept -> bool {
 auto Status(D2R::Game::Client*, const D2RL::ConsoleCommandContext* command, void*) noexcept -> D2RL::ConsoleCommandResult {
     if (!command || !command->plugin) return D2RL::ConsoleCommandResult::Failed;
     char message[448]{};
-    std::snprintf(message, sizeof(message), "Auto Pickup Anything 0.7.1: enabled=%s; validation-only=%s; scans=%llu; attempts=%llu; picked=%llu; refused=%llu; external-scans=%llu; exceptions=%llu; retry-skips=%llu.",
+    std::snprintf(message, sizeof(message), "Auto Pickup Anything 0.7.2: enabled=%s; validation-only=%s; scans=%llu; attempts=%llu; picked=%llu; refused=%llu; external-scans=%llu; exceptions=%llu; retry-skips=%llu.",
         Settings.enabled ? "true" : "false", Settings.validateOnly ? "true" : "false",
         static_cast<unsigned long long>(Metrics.scans.load()), static_cast<unsigned long long>(Metrics.attempts.load()),
         static_cast<unsigned long long>(Metrics.picked.load()), static_cast<unsigned long long>(Metrics.refused.load()),
@@ -240,7 +240,7 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
         else {
             ResolveRuntime(); if (!InstallMutations()) { StopRetryLifecycle(); return false; }
             { std::lock_guard lock(ScanApiMutex); ScanApiReady = true; }
-            context->LogInfo("Auto Pickup Anything 0.7.1 active; item selection only, native stacking and placement.");
+            context->LogInfo("Auto Pickup Anything 0.7.2 active; item selection only, native stacking and placement.");
         }
     }
     if (!context->RegisterConsoleCommand("auto-pickup", Status, "Show item selection pickup counters.")) context->LogWarn("AutoPickupAnything: status command unavailable.");

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.2
+
+- Follow up on reports of `plugins/plugin.json` conflicts persisting with the previous packaging fix.
+- Omit build-only `plugin.json` and catalog JSON from installation ZIPs; keep both in source packages.
+- Prefix every supporting document, dependency license and checksum filename with this plugin's ID, including when importer directories are flattened.
+- Move supporting documents outside the runtime `plugins/` tree and validate the exact installation contents and checksums.
+- Add packaging regressions that reject the previous generic filenames and model flattened imports.
+- Keep pickup behavior, plugin IDs, defaults, configuration keys and gold limits unchanged.
+
 ## 0.7.1
 
 - Fix multi-plugin ZIP installation conflicts by placing metadata, docs, licenses and internal checksums in a plugin-specific folder.

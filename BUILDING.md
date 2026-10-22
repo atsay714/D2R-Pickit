@@ -46,10 +46,18 @@ notices. `dist/SHA256SUMS.txt` hashes the ZIPs themselves. The source ZIP can
 build and test independently. Packages never include developer build output,
 logs, character saves, credentials or publishing tokens.
 
-Each installation ZIP stores supporting files and its internal `SHA256SUMS.txt`
-under `<scope>/plugins/<plugin-id>.docs/`. The DLL and TOML keep their normal
-paths. No shared root metadata names are installed by binary packages. The
-source ZIP retains its normal source-tree layout and root checksum manifest.
+Each installation ZIP stores text documents under
+`<scope>/docs/<plugin-id>/`. Every document and checksum filename is prefixed
+with the plugin ID, including dependency licenses. `plugin.json` and the
+catalog are build/source files and never enter installation ZIPs. This avoids
+generic JSON being interpreted as a runtime patch. The DLL and TOML keep their
+normal paths. Verification rejects generic/unexpected files, case-insensitive
+path and leaf-filename collisions, missing licenses, and invalid checksums.
+The source ZIP retains its normal source-tree layout and root checksum manifest.
+
+Run `python -m unittest discover -s tests -p test_packaging.py` for packaging
+regressions. These include a simulated importer that flattens paths: this is
+an additional compatibility check, not a claim to reproduce every manager.
 
 For a different build or output directory, pass `--build-dir` or `--output-dir`.
 `--mod-name` changes the mod folder in the mod-layout ZIP; the default is

@@ -6,7 +6,7 @@ Custom include/exclude lists let you choose additional items by their exact code
 The plugin works with vanilla D2R and includes explicit Reimagined item codes.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.7.1 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
+**Version:** 0.7.2 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -31,16 +31,26 @@ by the loader; copy new settings deliberately when upgrading.
 DLL: `d2rl-auto-pickup-anything.dll`  
 Config: `d2rloader/config/auto-pickup-anything.toml` in the selected scope.
 
-Installation ZIPs keep their metadata, documentation, licenses and checksums
-under `d2rloader/plugins/auto-pickup-anything.docs/` in the selected scope. No
-generic `plugin.json` or other supporting file is placed at the ZIP root, so
-multiple plugins can be installed together without those files colliding.
-The source ZIP is for building, not installation.
+Installation ZIPs contain the DLL, default TOML and supporting text documents.
+Documentation, licenses and internal checksums live under
+`d2rloader/docs/auto-pickup-anything/` in the selected scope. Every supporting
+filename starts with `auto-pickup-anything.`, so they also remain distinct if an
+importer flattens directories. Build metadata (`plugin.json`) and the item-code
+catalog are retained in the repository/source ZIP and are not installed as
+runtime JSON patches. The source ZIP is for building, not installation.
+
+For a manager that reports a `plugins/plugin.json differs between ...` error,
+remove its conflicting imported package entries and import the new packages.
+If the manager still uses cached contents, manual installation can bypass the
+package importer: copy only this plugin's DLL into the active D2RLoader
+`plugins/` folder. The DLL embeds the default config, which D2RLoader creates
+when missing. Keep existing TOML settings when upgrading and use one active
+copy of each DLL. Do not remove character saves or environment history files.
 
 ## Configuration
 
 ```toml
-# Auto Pickup Anything 0.7.1
+# Auto Pickup Anything 0.7.2
 # Active immediately on a compatible D2RLoader runtime. Restart after edits.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.
