@@ -21,8 +21,12 @@ rune_stacks = true
 [item_codes]
 # Exact item codes, not numeric item IDs. Both lists are optional.
 # Include adds to the groups above; exclude always wins. Gold stays native.
-# Example: include = ["jew", "cm1"] and exclude = ["r01"]
+# Common extras: "jew" = jewels; "cm1" = small charms;
+# "cm2" = large charms; "cm3" = grand charms; "rvl" = full rejuvenation potions.
+# Codes select every quality, so charm/jewel codes do not filter for uniques.
+# Example: include = ["jew", "cm1", "cm3", "rvl"]
 include = []
+# Example: exclude = ["r01"] leaves El runes even when runes = true.
 exclude = []
 
 [d2rl]
