@@ -49,6 +49,8 @@ def main():
     config = (ROOT / 'config' / config_name).read_bytes()
     settings = tomllib.loads(config.decode())
     assert settings['enabled'] and not settings['validate_only']
+    assert settings['item_codes'] == {'include': [], 'exclude': []}, 'Custom lists must ship empty'
+    assert {'item_codes.include', 'item_codes.exclude'} <= set(settings['d2rl']['match'])
     # Verify metadata against the actual DLL without activating the plugin.
     import ctypes
     class Info(ctypes.Structure):

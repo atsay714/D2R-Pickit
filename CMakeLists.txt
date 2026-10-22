@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(AutoPickupAnything VERSION 0.6.1 LANGUAGES CXX RC)
+project(AutoPickupAnything VERSION 0.7.0 LANGUAGES CXX RC)
 include(CTest)
 set(D2RL_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/PluginSDK" CACHE PATH "D2RLoader Plugin SDK")
 add_subdirectory("${D2RL_SDK_DIR}" sdk)

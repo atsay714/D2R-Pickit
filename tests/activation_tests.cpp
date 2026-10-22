@@ -19,6 +19,17 @@ int main(int argc, char** argv) {
     CHECK(LoaderFixture::InlineHooks == 0);
     CHECK(!D2RL::HasFlag(D2RLoaderGetPluginInfo()->flags, D2RL::PluginFlags::ModScopedOnly));
     D2RLoaderUnloadPlugin();
+    auto custom = text;
+    const auto includeAt = custom.find("\ninclude = []"), excludeAt = custom.find("\nexclude = []");
+    CHECK(includeAt != std::string::npos && excludeAt != std::string::npos);
+    // Replace from the end to preserve the preceding offset.
+    if (excludeAt != std::string::npos) custom.replace(excludeAt, 13, "\nexclude = [\"r01\"]");
+    if (includeAt != std::string::npos) custom.replace(includeAt, 13, "\ninclude = [\"jew\"]");
+    context = LoaderFixture::Setup(custom, true);
+    CHECK(D2RLoaderLoadPlugin(context));
+    CHECK(Settings.Selects(PackItemCode("jew")) && !Settings.Selects(PackItemCode("r01")));
+    CHECK(LoaderFixture::Patches == 4);
+    D2RLoaderUnloadPlugin();
     // Out-of-box activation must not bypass build/signature admission.
     context = LoaderFixture::Setup(text, false);
     CHECK(!D2RLoaderLoadPlugin(context));

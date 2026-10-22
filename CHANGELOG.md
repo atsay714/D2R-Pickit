@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Restore optional `[item_codes].include` and `.exclude` arrays with empty defaults.
+- Allow exact item codes outside the built-in categories; exclusions override both categories and inclusions.
+- Apply the same custom selection to movement pickup and Teleport Auto Pickup's V1/V2 scan APIs.
+- Accept multiline lists, comments, single or double quotes, and trailing commas; reject malformed codes and duplicate settings.
+- Keep existing configs valid, the default categories unchanged, and gold handled by the existing gold collector.
+- Document item-code lookup, examples and upgrades, and rebuild native, Reimagined-layout and source packages.
+
 ## 0.6.1
 
 - Set displayed plugin author and Windows file company to atsay714.

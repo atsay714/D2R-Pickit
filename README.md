@@ -2,10 +2,11 @@
 
 Automatically pick up selected gems and runes in Diablo II: Resurrected.
 Optional switches add ordinary keys and health, mana or rejuvenation potions.
+Custom include/exclude lists let you choose additional items by their exact codes.
 The plugin works with vanilla D2R and includes explicit Reimagined item codes.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.6.1 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
+**Version:** 0.7.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -33,7 +34,7 @@ Config: `d2rloader/config/auto-pickup-anything.toml` in the selected scope.
 ## Configuration
 
 ```toml
-# Auto Pickup Anything 0.6.1
+# Auto Pickup Anything 0.7.0
 # Active immediately on a compatible D2RLoader runtime. Restart after edits.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.
@@ -53,8 +54,15 @@ gems = true
 gem_stacks = true
 rune_stacks = true
 
+[item_codes]
+# Exact item codes, not numeric item IDs. Both lists are optional.
+# Include adds to the groups above; exclude always wins. Gold stays native.
+# Example: include = ["jew", "cm1"] and exclude = ["r01"]
+include = []
+exclude = []
+
 [d2rl]
-match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks"]
+match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks", "item_codes.include", "item_codes.exclude"]
 ```
 
 | Setting | Includes |
@@ -70,9 +78,48 @@ match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.k
 
 The Reimagined switches default to true. Their item codes differ from vanilla
 and select no unrelated vanilla items. Power orbs, crafting materials, Uber
-keys, jewels, charms, equipment and other categories are left for manual
-pickup. The [catalog](catalog.json) lists the 130 supported codes. `[d2rl]`
-is loader compatibility metadata; retain it when editing item preferences.
+keys, jewels, charms, equipment and other categories stay manual unless you
+explicitly include their codes. The [catalog](catalog.json) lists the 130 codes
+covered by the built-in category switches; custom lists can use other codes.
+`[d2rl]` is loader compatibility metadata; retain it when editing item preferences.
+
+### Custom item codes
+
+Both lists ship empty, so the default pickup selection is unchanged:
+
+```toml
+[item_codes]
+include = []
+exclude = []
+```
+
+`include` adds items even when their category is disabled or absent from the
+built-in catalog. `exclude` always wins, including over an explicit inclusion.
+For example, pick up jewels and small charms, but leave El runes on the ground:
+
+```toml
+[item_codes]
+include = ["jew", "cm1"]
+exclude = ["r01"]
+```
+
+Use exact, quoted item codes of 1-4 lowercase letters or digits, not numeric
+item IDs, display names or wildcards. Codes identify an item type, not its
+quality: including `cm1` selects all small charms. Look up vanilla or mod codes
+in the `code` column of `misc.txt`, `weapons.txt` or `armor.txt`; the catalog
+above provides examples for the built-in groups. Codes from other mods work
+when they follow the same format and the native compatibility checks pass.
+Single or double quotes, multiline arrays, comments and trailing commas are
+supported. Invalid lists prevent activation and produce a config error in the log.
+
+Gold (`gld`) stays with the game's gold pickup or Teleport Auto Pickup; adding
+it here does not enable a second gold collector. Game pickup rules still apply
+to every custom selection, including inventory capacity and collision.
+
+When upgrading, existing configs without `[item_codes]` remain valid. To customize
+one, add the section once before `[d2rl]`, retain the other settings, and add
+`"item_codes.include"` and `"item_codes.exclude"` to `[d2rl].match` as shown in
+the full default config above. Restart the game after editing.
 
 ## Pickup behavior
 
@@ -84,7 +131,10 @@ This is a separate collector; exact vanilla auto-gold selection parity is
 unverified.
 
 [Teleport Auto Pickup](https://github.com/atsay714/d2rl-teleport-auto-pickup)
-can request the same item selection after casts. Its V2 bridge supplies a
+can request the same item selection after casts, including both custom lists.
+Pair them to collect nearby selected loot after teleporting without taking
+that awkward little step to trigger pickup. Your mouse has suffered enough.
+Its V2 bridge supplies a
 distance for that scan only; it never changes movement pickup's distance.
 Either plugin works independently. The V1 bridge remains available at distance 4.
 

@@ -47,7 +47,19 @@ int main() {
     CHECK(!ExternalRangeScan(&Player, 0) && !ExternalRangeScan(&Player, 21));
     CHECK(requests == 4);
     ExpectedDistance = 4; Item.distance = 4; Scan(&Player); CHECK(requests == 5); // External call never changes movement range.
-    Settings.enabled = false; Scan(&Player); CHECK(requests == 5);
+    CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"r01\"]", Settings, error));
+    Item.code = PackItemCode("jew"); Scan(&Player); CHECK(requests == 6);
+    Item.code = PackItemCode("r01"); Scan(&Player); CHECK(requests == 6);
+    CHECK(ExternalScan(&Player)); CHECK(requests == 6); // The V1 bridge honors exclusions too.
+    Item.code = PackItemCode("jew"); CHECK(ExternalScan(&Player)); CHECK(requests == 7);
+    Item.distance = 8; ExpectedDistance = 8;
+    CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 8); // Teleport's V2 bridge uses the custom policy.
+    CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"jew\"]", Settings, error));
+    CHECK(ExternalRangeScan(&Player, 8)); CHECK(requests == 8);
+    Item.distance = 4; ExpectedDistance = 4; Scan(&Player); CHECK(requests == 8);
+    CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]", Settings, error));
+    NativeAccepts = false; Scan(&Player); CHECK(requests == 9 && Metrics.refused.load() == 2);
+    NativeAccepts = true; Settings.enabled = false; Scan(&Player); CHECK(requests == 9);
     std::cout << "Selected items use the same native request; unselected/mod items, collisions and distance rejected; native refusal preserved; failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

@@ -1,4 +1,4 @@
-# Auto Pickup Anything 0.6.1
+# Auto Pickup Anything 0.7.0
 # Active immediately on a compatible D2RLoader runtime. Restart after edits.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.
@@ -18,5 +18,12 @@ gems = true
 gem_stacks = true
 rune_stacks = true
 
+[item_codes]
+# Exact item codes, not numeric item IDs. Both lists are optional.
+# Include adds to the groups above; exclude always wins. Gold stays native.
+# Example: include = ["jew", "cm1"] and exclude = ["r01"]
+include = []
+exclude = []
+
 [d2rl]
-match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks"]
+match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks", "item_codes.include", "item_codes.exclude"]
