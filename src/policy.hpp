@@ -1,7 +1,9 @@
 #pragma once
 #include "catalog.hpp"
+#include "auto_interact/policy.hpp"
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -19,6 +21,11 @@ constexpr auto PackItemCode(std::string_view code) noexcept -> std::uint32_t {
 }
 struct Config {
     bool enabled{true}, validateOnly{};
+    AutoInteract::Config interact;
+    bool interactConfigured{};
+    bool walkingEnabled{true}, teleportEnabled{true}, teleportGold{true}, teleportItems{true};
+    bool diagnosticsEnabled{true};
+    std::uint32_t walkingRange{4}, teleportRange{4}, intervalMs{100}, windowMs{2000};
     std::array<bool, VanillaGroups.size()> vanilla{true, true};
     std::array<bool, ReimaginedGroups.size()> reimagined{true, true, true};
     // Sorted and deduplicated once when the config is parsed.
@@ -75,11 +82,14 @@ inline auto ParseItemCodes(std::string_view value, std::vector<std::uint32_t>& c
 }
 inline auto ParseConfig(std::string_view input, Config& output, std::string& error) -> bool {
     Config parsed;
-    enum class Section { Root, Vanilla, Reimagined, ItemCodes, D2rl } section{Section::Root};
-    std::array<bool, 5> sections{};
+    enum class Section { Root, Vanilla, Reimagined, ItemCodes, D2rl, Walking, Teleport, Interact } section{Section::Root};
+    std::array<bool, 8> sections{};
+    std::string interactText;
     std::array<bool, VanillaGroups.size()> vanillaSeen{};
     std::array<bool, ReimaginedGroups.size()> reimaginedSeen{};
     bool enabledSeen{}, validationSeen{}, includeSeen{}, excludeSeen{};
+    std::array<bool, 2> walkingSeen{};
+    std::array<bool, 7> teleportSeen{};
     std::size_t lineNumber{};
     auto fail = [&](std::string_view message) { error = "line " + std::to_string(lineNumber) + ": " + std::string(message); return false; };
     for (std::size_t start = 0; start <= input.size();) {
@@ -93,15 +103,43 @@ inline auto ParseConfig(std::string_view input, Config& output, std::string& err
             else if (line == "[reimagined]") section = Section::Reimagined;
             else if (line == "[item_codes]") section = Section::ItemCodes;
             else if (line == "[d2rl]") section = Section::D2rl;
+            else if (line == "[walking]") section = Section::Walking;
+            else if (line == "[teleport]") section = Section::Teleport;
+            else if (line == "[auto_interact]") { section = Section::Interact; parsed.interactConfigured = true; }
             else return fail("unknown section; use the current plugin config");
             auto& seen = sections[static_cast<std::size_t>(section)];
             if (seen) return fail("duplicate section");
             seen = true; continue;
         }
         if (section == Section::D2rl) continue;
+        if (section == Section::Interact) { interactText += line; interactText += '\n'; continue; }
         const auto eq = line.find('=');
         if (eq == std::string_view::npos) return fail("expected key=value");
         const auto key = Trim(line.substr(0, eq)), value = Trim(line.substr(eq + 1));
+        if (section == Section::Walking || section == Section::Teleport) {
+            const bool walking = section == Section::Walking;
+            constexpr std::array<std::string_view, 7> keys{"enabled", "pickup_range", "gold", "items", "interval_ms", "window_ms", "diagnostics_enabled"};
+            std::size_t k{};
+            for (; k < keys.size() && keys[k] != key; ++k) {}
+            if (k == keys.size() || (walking && k > 1)) return fail("unknown pickup setting");
+            auto& seen = walking ? walkingSeen[k] : teleportSeen[k];
+            if (seen) return fail("duplicate setting");
+            seen = true;
+            if (k == 0 || k == 2 || k == 3 || k == 6) {
+                auto& target = walking ? parsed.walkingEnabled : k == 0 ? parsed.teleportEnabled
+                    : k == 2 ? parsed.teleportGold : k == 3 ? parsed.teleportItems : parsed.diagnosticsEnabled;
+                if (!ParseBool(value, target)) return fail("expected boolean");
+            } else {
+                std::uint32_t number{};
+                const auto [last, ec] = std::from_chars(value.data(), value.data() + value.size(), number);
+                if (value.empty() || ec != std::errc{} || last != value.data() + value.size()) return fail("expected integer");
+                if (k == 1 && (number < 1 || number > 20)) return fail("pickup_range must be 1..20");
+                if (k == 4 && (number < 50 || number > 1000)) return fail("interval_ms must be 50..1000");
+                if (k == 5 && (number < 500 || number > 5000)) return fail("window_ms must be 500..5000");
+                (walking ? parsed.walkingRange : k == 1 ? parsed.teleportRange : k == 4 ? parsed.intervalMs : parsed.windowMs) = number;
+            }
+            continue;
+        }
         if (section == Section::ItemCodes) {
             if (key != "include" && key != "exclude") return fail("unknown item_codes setting; use include or exclude");
             auto& seen = key == "include" ? includeSeen : excludeSeen;
@@ -135,6 +173,9 @@ inline auto ParseConfig(std::string_view input, Config& output, std::string& err
         if (!valid) return fail("invalid value");
         *seen = true;
     }
+    if (parsed.windowMs < parsed.intervalMs) return fail("window_ms must be at least interval_ms");
+    if (!AutoInteract::ParseConfig(interactText, parsed.interact, error)) return false;
+    if (!parsed.interactConfigured) parsed.interact.enabled = false; // Old Pickit config: no new gameplay until opted in or migrated.
     output = std::move(parsed); error.clear(); return true;
 }
 }

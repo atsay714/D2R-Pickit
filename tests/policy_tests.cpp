@@ -15,6 +15,12 @@ int main(int argc, char** argv) {
     Config c; std::string error;
     CHECK(ParseConfig(text, c, error) && c.enabled && !c.validateOnly);
     CHECK(c.includeCodes.empty() && c.excludeCodes.empty());
+    CHECK(c.walkingRange == 4 && c.teleportRange == 4 && c.walkingEnabled && c.teleportEnabled && c.teleportGold && c.teleportItems);
+    CHECK(ParseConfig("[walking]\nenabled=false\npickup_range=20\n[teleport]\npickup_range=1\ngold=false\nitems=false\n", c, error));
+    CHECK(!c.walkingEnabled && c.walkingRange == 20 && c.teleportRange == 1 && !c.teleportGold && !c.teleportItems);
+    for (const auto bad : {"[walking]\npickup_range=0", "[walking]\npickup_range=21", "[teleport]\npickup_range=3.5", "[teleport]\ninterval_ms=49", "[teleport]\nwindow_ms=500\ninterval_ms=1000"})
+        CHECK(!ParseConfig(bad, c, error));
+    CHECK(ParseConfig(text, c, error));
     CHECK(VanillaGroups.size() == 6 && ReimaginedGroups.size() == 3);
     for (const auto& row : Catalog) {
         const bool expected = row.reimagined || VanillaGroups[row.group] == "gems" || VanillaGroups[row.group] == "runes";

@@ -1,0 +1,248 @@
+{
+  "build": "3.3.93847",
+  "code_capture_sha256": "9918bc2fb45db42f0b28825a0d4d223b5af6bba6f434d54af203ae67b3e72eb8",
+  "witnesses": [
+    {
+      "name": "GetUnitRoom",
+      "rva": "0x34b440",
+      "size": 96,
+      "sha256": "c1c75901c024ed9852c419d9b8b96d4ba365f255dff8ce5d151c9ddb8e06babf"
+    },
+    {
+      "name": "RoomNeighbours",
+      "rva": "0x2efde0",
+      "size": 13,
+      "sha256": "3db731f0784918efb1c1c6ffc016c91c81cd5c01f23ca340d1b875a00d320556"
+    },
+    {
+      "name": "RoomFirstUnit",
+      "rva": "0x2efd90",
+      "size": 8,
+      "sha256": "77c89f3bec3cec8d5caed75e3d04e10c6d3af214ade3cb66b04d8a93f923b651"
+    },
+    {
+      "name": "NextUnit",
+      "rva": "0x34b4a0",
+      "size": 96,
+      "sha256": "1fc18da514ba69f20893c4bc177cd3208e7a207b9043783a37084ae835b3bbcb"
+    },
+    {
+      "name": "UnitType",
+      "rva": "0x34b9d0",
+      "size": 64,
+      "sha256": "6d68c3ba7604da867d36da76f58ea6b7e3b09d4352410612c6dec5f701a3787e"
+    },
+    {
+      "name": "UnitId",
+      "rva": "0x34a330",
+      "size": 48,
+      "sha256": "7335433488a2562ea160ed263f2e87104cefdba100b14455465d0651a6619a99"
+    },
+    {
+      "name": "UnitMode",
+      "rva": "0x34ab60",
+      "size": 43,
+      "sha256": "b90cc5c1a56f3967ed145a452a8f3d554435d8a1b98c210f7f3ed62c04d75ceb"
+    },
+    {
+      "name": "UnitIdentityLayout",
+      "rva": "0x34b7b2",
+      "size": 20,
+      "sha256": "5f0eb49b29a29c98fb656043cff92300fae0a8c5571b721a42631900a349e1e7"
+    },
+    {
+      "name": "GetGameFromUnit",
+      "rva": "0x48ff00",
+      "size": 59,
+      "sha256": "7d1895e27ac7b3fea57a742151142080d921786066847e7c135e8021760ab8ff"
+    },
+    {
+      "name": "ServerUnit",
+      "rva": "0x48fe80",
+      "size": 131,
+      "sha256": "b32f20ec1ab6de994e72b367aaa5bca5eeaae852addf44160632d8eaae58477f"
+    },
+    {
+      "name": "UnitDistance",
+      "rva": "0x325140",
+      "size": 32,
+      "sha256": "dde6075a121780949ba63d30d2b3ce012d67c5c3401a45b8bf83c0b06ba0b224"
+    },
+    {
+      "name": "UnitCollision",
+      "rva": "0x350550",
+      "size": 30,
+      "sha256": "99870979c64c0e5fc995fcc06637d67d814499523bffc09819774000cec36259"
+    },
+    {
+      "name": "ObjectReach",
+      "rva": "0x34bc90",
+      "size": 324,
+      "sha256": "e3adc1738e427155e2025277f57d8d92c6166677625df913f380241c7555fe84"
+    },
+    {
+      "name": "ObjectReachShape",
+      "rva": "0x34bde0",
+      "size": 416,
+      "sha256": "f291d1690afccde121f5d3e09789315bf2aadba55449cbe90404c96d846a4d66"
+    },
+    {
+      "name": "ObjectRecord",
+      "rva": "0x34ad90",
+      "size": 81,
+      "sha256": "40f027f32c74ba959d2737e49740453a1b4aca14ab307e71e7bd86518d66b933"
+    },
+    {
+      "name": "ObjectsCount",
+      "rva": "0x38fc70",
+      "size": 20,
+      "sha256": "19eadf87f2ba0dc877e7ac4ce65bf755709f8a38a3b690ab4a291c1ec0d36574"
+    },
+    {
+      "name": "ObjectsRecord",
+      "rva": "0x38fd00",
+      "size": 132,
+      "sha256": "cbc8d26e089cc6e8af13fbb64b5fcd1d01ac1ba25367853c89f9ad2c72c93e9c"
+    },
+    {
+      "name": "ObjectDispatcher",
+      "rva": "0x593630",
+      "size": 731,
+      "sha256": "c46c2e210fb0afd9272dc93cce989cec51115a88dc39d0d17afaf6e485630e63"
+    },
+    {
+      "name": "ObjectPacketReach",
+      "rva": "0x4b177a",
+      "size": 111,
+      "sha256": "4ad4856b21ed9502ca9ea66e93b45cfba44b4d632b6752fb86fe4e4b38a07cd6"
+    },
+    {
+      "name": "ObjectSelectable",
+      "rva": "0x3500e0",
+      "size": 51,
+      "sha256": "fb435405866ed668ff61114801fecba645b398f46f9eac87d58c07edae815b30"
+    },
+    {
+      "name": "IsDead",
+      "rva": "0x34c2c0",
+      "size": 114,
+      "sha256": "5323aa5b23be42406885c143adb50ff288caaa7deeb45f7b85194667bb79e42b"
+    },
+    {
+      "name": "Inventory",
+      "rva": "0x34a360",
+      "size": 165,
+      "sha256": "511d50e25a954c422741a618203f92c46a3e47103e1fd99b8a41c2bc3a5d4d58"
+    },
+    {
+      "name": "CursorItem",
+      "rva": "0x388a70",
+      "size": 95,
+      "sha256": "3eb03370bb4ad16174652baf52017ab71aee61d8bb32a9b1bf635681c5608f10"
+    },
+    {
+      "name": "FirstInventoryItem",
+      "rva": "0x388c10",
+      "size": 68,
+      "sha256": "912a872e72494f99ede417a6c73afd3ec10c20cbd86443aa4c61f6f736ff9165"
+    },
+    {
+      "name": "NextInventoryItem",
+      "rva": "0x38aba0",
+      "size": 164,
+      "sha256": "eb3d851410d3c6876365e699fdd15e8d9989d4fdf3c503f9133cb1d51b45095e"
+    },
+    {
+      "name": "ItemType",
+      "rva": "0x373890",
+      "size": 32,
+      "sha256": "4cac51455cc2260ec13985fc68ec719b5e581d5464b8fc29607307bad80d209d"
+    },
+    {
+      "name": "ItemPage",
+      "rva": "0x36cfe0",
+      "size": 112,
+      "sha256": "f342fcd465aefeca6d96536d3358eb6c0f218bf188c8fe5cda735607eaae0bf1"
+    },
+    {
+      "name": "PlayerAction",
+      "rva": "0x42d020",
+      "size": 33,
+      "sha256": "784098d87740c3f1b7efa54cbd69f7ea912890288b567bbef6fc0e0be2987de6"
+    },
+    {
+      "name": "PlayerActionArguments",
+      "rva": "0x4f3be4",
+      "size": 53,
+      "sha256": "c30905e9add8b8c9699fada3c49a766a0763d6e5d48ba71e7b0b2121d3b37613"
+    },
+    {
+      "name": "ClassAndSelectableSchema",
+      "rva": "0x38ff15",
+      "size": 290,
+      "sha256": "47f3e4a0ce7dbe29a623ef2102282a94335e643f23ffeeb66339b55283071b64"
+    },
+    {
+      "name": "DoorSchema",
+      "rva": "0x390a4e",
+      "size": 730,
+      "sha256": "b875efd3690700e540c96cdd7b13fcf8589d2cd95d2cf5daee14525c3aeeb68b"
+    },
+    {
+      "name": "OperationSchema",
+      "rva": "0x3914d4",
+      "size": 468,
+      "sha256": "548dccd999c98a2fdaf8d457621c85976c02f7ac73ac44743f209fe32bc171f9"
+    },
+    {
+      "name": "ObjectSubclass",
+      "rva": "0x34c470",
+      "size": 30,
+      "sha256": "6660a7d8730a25760b507ad09d3ebff1655c1493d9d68092440f65373edec80a"
+    },
+    {
+      "name": "Operation3",
+      "rva": "0x58f1d0",
+      "size": 208,
+      "sha256": "7e3841f1cfc17500233ad0456e00ce4ee1c512da33eecc7eb43053268b8651f8"
+    },
+    {
+      "name": "Operation4",
+      "rva": "0x58e2f0",
+      "size": 1431,
+      "sha256": "fdd65c605dcc5e9fda75f95b860380624f251639d658b16442081922f488ce96"
+    },
+    {
+      "name": "Operation5",
+      "rva": "0x58e890",
+      "size": 395,
+      "sha256": "04c65360ab5178978772f2b6fc2ddc69c128bc5ae26ccbd61db2db5c8924ff46"
+    },
+    {
+      "name": "Operation14",
+      "rva": "0x58eed0",
+      "size": 202,
+      "sha256": "9dc12cd16bc17215cafff592f64da49f097cf4e1a67e8f266caabe35d2d6dd1c"
+    },
+    {
+      "name": "Operation19",
+      "rva": "0x58f560",
+      "size": 141,
+      "sha256": "62759d2cb664f071f81bd968ba75d7cc6ba2132848484289ac6f2f45995148ed"
+    },
+    {
+      "name": "Operation20",
+      "rva": "0x58f5f0",
+      "size": 141,
+      "sha256": "4f2ffec165f42e5fba2a7f22a46946dec4902f7fe22c32d393f8cf70c09070b3"
+    },
+    {
+      "name": "Operation51",
+      "rva": "0x5905e0",
+      "size": 249,
+      "sha256": "608145e669d4d2971fa54e8649d8f9abee36510d8a3b53a0ba49235c64562257"
+    }
+  ],
+  "callback_table_rva": "0x23A51C0",
+  "qualification": "Static analysis of user-supplied live code capture; native calls not yet gameplay-qualified"
+}

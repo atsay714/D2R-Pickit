@@ -19,6 +19,7 @@ void Inspect(HMODULE module, bool anything) {
         // IDs are character-history keys, not public branding. Pin both.
         if (info) CHECK(std::string_view(info->id) == (anything ? "auto-pickup-anything" : "teleport-auto-pickup"));
     }
+    CHECK(GetProcAddress(module, "AutoInteractGetSettingsApi") == nullptr); // Settings are internal now.
     CHECK(GetProcAddress(module, "D2RLoaderLoadPlugin") != nullptr);
     CHECK(GetProcAddress(module, "D2RLoaderUnloadPlugin") != nullptr);
     const auto getApi = reinterpret_cast<Reimagined::PickupBridge::GetApiFn>(GetProcAddress(module, Reimagined::PickupBridge::ExportName));

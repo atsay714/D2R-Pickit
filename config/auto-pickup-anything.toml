@@ -1,8 +1,25 @@
-# Auto Pickup Anything 0.7.2
-# Active immediately on a compatible D2RLoader runtime. Restart after edits.
+# D2R Pickit 0.10.0 (stable config/ID: auto-pickup-anything)
+# Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
+# Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true
 # Optional troubleshooting mode; compatibility checks always run.
 validate_only = false
+
+[walking]
+enabled = true
+# Native distance units, not yards (1..20; default 4).
+pickup_range = 4
+
+[teleport]
+# Also covers other cast actions. Pickit owns this with cooperative Teleport 0.3.5+.
+# Older Teleport keeps control through teleport-auto-pickup.toml; no update required.
+enabled = true
+gold = true
+items = true
+pickup_range = 4
+interval_ms = 100
+window_ms = 2000
+diagnostics_enabled = true
 
 [vanilla]
 gems = true
@@ -29,5 +46,25 @@ include = []
 # Example: exclude = ["r01"] leaves El runes even when runes = true.
 exclude = []
 
+# Built-in object opening. Independent of the item-pickup master above.
+[auto_interact]
+enabled = true
+validate_only = false
+# Ordinary loot containers: chests, hidden stashes, hollow logs, baskets,
+# jars/urns, crates, normal barrels, cocoons and jungle stashes.
+chests = true
+corpses = true
+rocks = true
+weapon_racks = true
+armor_racks = true
+# Opt in to spending normal keys. Missing keys skip locked chests.
+locked_chests = false
+# Separate from Pickit. 0 = native reach; 1..20 = opening distance without walking.
+# Collision still applies. Normal barrels retain native kick reach.
+interact_range = 0
+interval_ms = 100
+retry_ms = 1000
+diagnostics_enabled = true
+
 [d2rl]
-match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks", "item_codes.include", "item_codes.exclude"]
+match = ["enabled", "validate_only", "vanilla.gems", "vanilla.runes", "vanilla.keys", "vanilla.health_potions", "vanilla.mana_potions", "vanilla.rejuvenation_potions", "reimagined.gems", "reimagined.gem_stacks", "reimagined.rune_stacks", "item_codes.include", "item_codes.exclude", "walking.enabled", "walking.pickup_range", "teleport.enabled", "teleport.gold", "teleport.items", "teleport.pickup_range", "teleport.interval_ms", "teleport.window_ms", "auto_interact.enabled", "auto_interact.validate_only", "auto_interact.chests", "auto_interact.corpses", "auto_interact.rocks", "auto_interact.weapon_racks", "auto_interact.armor_racks", "auto_interact.locked_chests", "auto_interact.interact_range", "auto_interact.interval_ms", "auto_interact.retry_ms"]

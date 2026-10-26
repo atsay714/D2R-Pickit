@@ -146,6 +146,32 @@ int main() {
     CHECK(ParseConfig("[item_codes]\ninclude = [\"jew\"]\nexclude = [\"jew\"]", Settings, error));
     FreshItem(82, PackItemCode("jew"), 8);
     CHECK(ExternalRangeScan(&Player, 8) && Requests.size() == 22);
+    // Live UI edits update master/category switches, but never exit diagnostic mode.
+    Settings = {};
+    Config uiConfig{}; uiConfig.enabled = false; uiConfig.validateOnly = true; uiConfig.vanilla.fill(false);
+    Picker::SetChoice(uiConfig, PackItemCode("jew"), Picker::Choice::Include);
+    Picker::SetChoice(uiConfig, PackItemCode("r01"), Picker::Choice::Exclude);
+    ApplyItemSelection(uiConfig);
+    const auto snapshot = SnapshotSettings();
+    CHECK(!snapshot.enabled && !snapshot.validateOnly && !snapshot.vanilla[0]);
+    CHECK(!ExternalScan(&Player));
+    CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17 && Requests.size() == 22);
+    uiConfig.enabled = true; ApplyItemSelection(uiConfig);
+    CHECK(snapshot.Selects(PackItemCode("jew")) && !snapshot.Selects(PackItemCode("r01")));
+    ResetItemRetries(); FreshItem(90, PackItemCode("jew")); ExpectedDistance = 4;
+    CHECK(ExternalScan(&Player) && Requests.size() == 23 && Requests.back() == 90);
+    FreshItem(91, PackItemCode("r01")); CHECK(ExternalScan(&Player) && Requests.size() == 23);
+    Settings.enabled = false; CHECK(!ExternalScan(&Player));
+    auto ranges = SnapshotSettings(); ranges.enabled = true; ranges.walkingRange = 8; ApplyItemSelection(ranges);
+    ResetItemRetries(); FreshItem(92, PackItemCode("jew"), 8); ExpectedDistance = 8;
+    CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17 && Requests.size() == 24);
+    FreshItem(93, PackItemCode("jew"), 8); ExpectedDistance = 4;
+    CHECK(ExternalScan(&Player) && Requests.size() == 24); // Legacy V1 remains fixed at 4.
+    ExpectedDistance = 9;
+    CHECK(ExternalRangeScan(&Player, 9) && Requests.size() == 25); // Standalone V2 keeps the caller's own radius.
+    ranges.walkingEnabled = false; ApplyItemSelection(ranges); FreshItem(94, PackItemCode("jew"), 1);
+    CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17 && Requests.size() == 25);
+    CHECK(ExternalRangeScan(&Player, 9) && Requests.size() == 26);
     ResetRuntime();
     CHECK(!ScanApiReady && ItemRetries.Ready({1, 60, PackItemCode("r01")}, 6002));
     std::cout << "Native selection and placement, failed/no-progress/exception retries, other-item fairness, walking/V1/V2 shared state, session/player isolation; failures: " << failures << '\n';

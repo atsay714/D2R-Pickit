@@ -36,7 +36,7 @@ def install_support_files(plugin_id):
     # Give every leaf filename an owner: some importers flatten ZIP directories.
     files = {f'{plugin_id}.{name}': (ROOT / name).read_bytes() for name in
              ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md', 'CHANGELOG.md')}
-    for dependency in ('PluginSDK', 'RuffnecKkNativeStats'):
+    for dependency in ('PluginSDK', 'RuffnecKkNativeStats', 'RuffnecKkObjectContract'):
         license_path = ROOT / 'third_party' / dependency / 'LICENSE'
         if license_path.exists():
             files[f'{plugin_id}.{dependency}.LICENSE.txt'] = license_path.read_bytes()
@@ -80,6 +80,8 @@ def main():
     config = (ROOT / 'config' / config_name).read_bytes()
     settings = tomllib.loads(config.decode())
     assert settings['enabled'] and not settings['validate_only']
+    assert settings['auto_interact']['enabled'] and settings['auto_interact']['interact_range'] == 0
+    assert {'auto_interact.enabled', 'auto_interact.interact_range', 'auto_interact.locked_chests'} <= set(settings['d2rl']['match'])
     assert settings['item_codes'] == {'include': [], 'exclude': []}, 'Custom lists must ship empty'
     assert {'item_codes.include', 'item_codes.exclude'} <= set(settings['d2rl']['match'])
     # Verify metadata against the actual DLL without activating the plugin.
@@ -116,10 +118,13 @@ def main():
     for name in ('prepare.py', 'catalog.json', 'HUB_LISTING.md'):
         if (ROOT / name).exists():
             source[name] = (ROOT / name).read_bytes()
-    for folder in ('src', 'config', 'tests', 'third_party', '.github'):
+    for folder in ('src', 'config', 'tests', 'third_party', 'tools', '.github'):
         for file in (ROOT / folder).rglob('*'):
             if file.is_file() and '__pycache__' not in file.parts:
                 source[file.relative_to(ROOT).as_posix()] = file.read_bytes()
+    for name in ('auto-interact-native-contract.json', 'auto-interact-native-research.md'):
+        file = ROOT / 'inspection' / name
+        if file.exists(): source['inspection/' + name] = file.read_bytes()
     path = args.output_dir / f'{plugin_id}-v{version}-source.zip'
     write_zip(path, source)
     outputs.append(path)
