@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1 — 2026-10-26
+
+- Simplify settings labels, help and save messages. Explain disabled post-cast
+  controls with the required Teleport Auto Pickup upgrade/removal and restart.
+- Describe interaction reach and its exceptions in plain language; remove
+  repeated Apply & Save instructions and the long container example list.
+- Keep all pickup, opening, config and migration behavior unchanged.
+- Release 0.10.0's hosted workflow could not start because GitHub reported an
+  account billing/spending-limit block. Validate and publish 0.10.1 locally
+  through the Hub dashboard; account billing requires the owner's attention.
+
 ## 0.10.0 — 2026-10-26
 
 - Add built-in Auto Interact for ordinary loot containers, scenery corpses,

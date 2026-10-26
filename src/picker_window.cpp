@@ -157,8 +157,8 @@ void Window::Layout() {
     // Use the tab as a header. A full-page themed tab is a sibling of these
     // controls and can paint over their selection fields during activation.
     MoveWindow(tabs, margin, px(54), width, px(34), TRUE);
-    MoveWindow(search, margin, px(100), (std::max)(px(100), width - px(170)), h, TRUE);
-    MoveWindow(filter, r.right - margin - px(155), px(100), px(155), h, TRUE);
+    MoveWindow(search, margin, px(100), (std::max)(px(100), width - px(205)), h, TRUE);
+    MoveWindow(filter, r.right - margin - px(190), px(100), px(190), h, TRUE);
     MoveWindow(countLabel, margin, px(136), width, px(22), TRUE);
     const int bulkWidth = (width - px(16)) / 3;
     MoveWindow(pickResults, margin, px(164), bulkWidth, h, TRUE);
@@ -261,7 +261,7 @@ void Window::Refresh() {
     }
     for (std::size_t i = 0; i < interactNumbers.size(); ++i) {
         const auto value = i == 0 ? activeInteract.values.range : i == 1 ? activeInteract.values.intervalMs : activeInteract.values.retryMs;
-        const auto text = i == 0 && !value ? std::wstring(L"Native reach (default)") : std::to_wstring(value);
+        const auto text = i == 0 && !value ? std::wstring(L"Normal reach (default)") : std::to_wstring(value);
         auto comboIndex = SendMessageW(interactNumbers[i], CB_FINDSTRINGEXACT, static_cast<WPARAM>(-1), reinterpret_cast<LPARAM>(text.c_str()));
         if (comboIndex == CB_ERR) {
             comboIndex = SendMessageW(interactNumbers[i], CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
@@ -270,11 +270,11 @@ void Window::Refresh() {
         SendMessageW(interactNumbers[i], CB_SETCURSEL, comboIndex, 0); EnableWindow(interactNumbers[i], activeInteract.available);
     }
     SetWindowTextW(interactHelp, activeInteract.available
-        ? L"Loot containers includes chests, hidden/jungle stashes, hollow logs, baskets, jars, ordinary urns, crates, barrels, cocoons and bone/skull piles.\r\n\r\nRange is separate from Pickit: 0 uses native reach; 1-20 opens from that distance without walking. Collision still applies. Normal barrels retain native kick reach. Personal stashes, Evil Urns and quest objects remain manual."
-        : L"Auto Interact is built into Pickit. Its settings are currently unavailable; check the Pickit log.");
+        ? L"Normal reach uses the game's usual interaction distance. Choose 1-20 to open eligible objects without moving.\r\n\r\nWalls still block interaction. Normal barrels require close range. Personal stashes, Evil Urns, exploding barrels, and quest objects stay manual."
+        : L"Auto Interact settings are unavailable. Check the Pickit log.");
     SetWindowTextW(ownership, delegated
-        ? L"Older Teleport controls post-cast pickup. Edit teleport-auto-pickup.toml and restart to change these settings. Updating Teleport to 0.3.5+ lets you manage them here in Pickit. Pickit's master switch stops item pickup; Teleport gold stays controlled by Teleport."
-        : L"Radii are native distance units (1-20), not yards. Default: 4. Explicit Include/Exclude rules override category switches. Turning Pickit off stops its item and post-cast gold pickups; your preferences are kept.");
+        ? L"Post-cast distance and options are disabled because an older Teleport Auto Pickup is installed. Update it to version 0.3.5 or later, or uninstall it, then restart the game."
+        : L"Item rules take priority over category settings.");
     if (changedRows) {
         ListView_SetItemCountEx(list, static_cast<int>(rows.size()), LVSICF_NOSCROLL);
         ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
@@ -305,8 +305,10 @@ void Window::ShowTab() {
     for (auto child : interactLabels) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     for (auto child : interactNumbers) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     ShowWindow(interactHelp, interact ? SW_SHOW : SW_HIDE);
-    SetWindowTextW(sourceLabel, interact ? L"Auto Interact | Built-in object-opening settings" : currentSource.c_str());
-    SetWindowTextW(statusLabel, interact ? Wide(activeInteract.status).c_str() : currentStatus.c_str());
+    SetWindowTextW(sourceLabel, interact ? L"Auto Interact" : currentSource.c_str());
+    SetWindowTextW(statusLabel, interact ? Wide(activeInteract.status).c_str()
+        : items && currentStatus.empty() ? L"Check items to pick them up. Uncheck items to leave them. The buttons below affect all search results."
+        : currentStatus.c_str());
     EnableWindow(save, interact ? activeInteract.available && activeInteract.dirty : pickitDirty);
     Repaint();
 }
@@ -331,14 +333,14 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         tab.pszText = const_cast<LPWSTR>(L"Auto Interact"); TabCtrl_InsertItem(tabs, 2, &tab);
         for (std::size_t i = 0; i < interactToggles.size(); ++i)
             interactToggles[i] = control(L"BUTTON", Wide(Reimagined::InteractSettings::ToggleLabels[i]).c_str(), WS_TABSTOP | BS_AUTOCHECKBOX, 300 + static_cast<int>(i));
-        const std::array<const wchar_t*, 3> interactText{L"Interaction range (0 = native)", L"Scan interval (ms)", L"Retry cooldown (ms)"};
+        const std::array<const wchar_t*, 3> interactText{L"Auto Interact distance", L"Scan interval (ms)", L"Retry cooldown (ms)"};
         for (std::size_t i = 0; i < interactNumbers.size(); ++i) {
             interactLabels[i] = control(L"STATIC", interactText[i], 0, 0);
             interactNumbers[i] = control(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 320 + static_cast<int>(i));
             const auto step = i == 0 ? 1U : i == 1 ? 50U : 1000U;
             const auto last = i == 0 ? 20U : i == 1 ? 1000U : 60000U;
             for (auto value = i == 0 ? 0U : step; value <= last; value += step) {
-                const auto text = i == 0 && !value ? std::wstring(L"Native reach (default)") : std::to_wstring(value);
+                const auto text = i == 0 && !value ? std::wstring(L"Normal reach (default)") : std::to_wstring(value);
                 const auto index = SendMessageW(interactNumbers[i], CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
                 SendMessageW(interactNumbers[i], CB_SETITEMDATA, index, value);
             }
@@ -346,8 +348,8 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         interactHelp = control(L"STATIC", L"", 0, 0);
         for (std::size_t i = 0; i < toggles.size(); ++i)
             toggles[i] = control(L"BUTTON", Wide(ToggleLabels[i]).c_str(), WS_TABSTOP | BS_AUTOCHECKBOX, 200 + static_cast<int>(i));
-        rangeLabels[0] = control(L"STATIC", L"Walking radius (1-20)", 0, 0);
-        rangeLabels[1] = control(L"STATIC", L"Post-cast radius (1-20)", 0, 0);
+        rangeLabels[0] = control(L"STATIC", L"Pickup distance while moving", 0, 0);
+        rangeLabels[1] = control(L"STATIC", L"Pickup distance after casting", 0, 0);
         for (int i = 0; i < 2; ++i) {
             ranges[i] = control(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 220 + i);
             for (int radius = 1; radius <= 20; ++radius)
@@ -357,7 +359,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         sourceLabel = control(L"STATIC", L"Reading loaded game item definitions...", 0, 0);
         search = control(L"EDIT", L"", WS_TABSTOP | WS_BORDER | ES_AUTOHSCROLL, SearchId);
         SendMessageW(search, EM_SETLIMITTEXT, 120, 0); SendMessageW(search, EM_SETCUEBANNER, FALSE, reinterpret_cast<LPARAM>(L"Search item name or code"));
-        filter = control(L"BUTTON", L"Overrides only", WS_TABSTOP | BS_AUTOCHECKBOX, FilterId);
+        filter = control(L"BUTTON", L"Only custom item rules", WS_TABSTOP | BS_AUTOCHECKBOX, FilterId);
         pickResults = control(L"BUTTON", L"Pick up results", WS_TABSTOP | BS_PUSHBUTTON, PickId);
         leaveResults = control(L"BUTTON", L"Leave results", WS_TABSTOP | BS_PUSHBUTTON, LeaveId);
         resetResults = control(L"BUTTON", L"Use category defaults", WS_TABSTOP | BS_PUSHBUTTON, ResetId);
@@ -366,11 +368,11 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_CHECKBOXES);
         ListView_SetCallbackMask(list, LVIS_STATEIMAGEMASK);
         if (!SetWindowSubclass(list, ListProcedure, 1, reinterpret_cast<DWORD_PTR>(this))) return -1;
-        std::array<LPCWSTR, 3> names{L"Item", L"Code", L"Pickup policy"};
+        std::array<LPCWSTR, 3> names{L"Item", L"Code", L"Pickup rule"};
         for (int i = 0; i < 3; ++i) { LVCOLUMNW column{}; column.mask = LVCF_TEXT | LVCF_WIDTH; column.pszText = const_cast<LPWSTR>(names[i]); column.cx = 200; ListView_InsertColumn(list, i, &column); }
         save = control(L"BUTTON", L"Apply && Save", WS_TABSTOP | BS_PUSHBUTTON, SaveId);
         close = control(L"BUTTON", L"Close", WS_TABSTOP | BS_PUSHBUTTON, CloseId);
-        statusLabel = control(L"STATIC", L"Check items to pick them up. Uncheck to leave them. Bulk buttons affect every search result; category defaults clears item overrides.", 0, 0);
+        statusLabel = control(L"STATIC", L"", 0, 0);
         if (!sourceLabel || !search || !filter || !countLabel || !list || !pickResults || !leaveResults || !resetResults || !save || !close || !statusLabel || !tabs || !ownership
             || std::any_of(toggles.begin(), toggles.end(), [](HWND child) { return !child; }) || !ranges[0] || !ranges[1]
             || !interactHelp || std::any_of(interactToggles.begin(), interactToggles.end(), [](HWND child) { return !child; })

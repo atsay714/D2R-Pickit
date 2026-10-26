@@ -83,7 +83,7 @@ inline auto SameSelection(const Config& a, const Config& b) -> bool {
 }
 inline constexpr std::array<const char*, 14> ToggleLabels{
     "Enable item pickup", "Vanilla gems", "Runes", "Ordinary keys", "Health potions", "Mana potions", "Rejuvenation potions",
-    "Reimagined gems", "Reimagined gem stacks", "Reimagined rune stacks", "Walking pickup", "Post-cast pickup", "Post-cast gold", "Post-cast items"};
+    "Reimagined gems", "Reimagined gem stacks", "Reimagined rune stacks", "Pick up while moving", "Pick up after casting", "Post-cast gold", "Post-cast items"};
 inline auto ToggleValue(const Config& config, std::size_t index) -> bool {
     if (!index) return config.enabled;
     if (index <= config.vanilla.size()) return config.vanilla[index - 1];

@@ -8,7 +8,7 @@ DLL filename and config filename remain unchanged for existing installations.
 The standalone Teleport Auto Pickup plugin remains supported and available.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.10.0 Â· **License:** MIT Â· **Runtime:** D2RLoader / Windows x64
+**Version:** 0.10.1 Â· **License:** MIT Â· **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -93,7 +93,7 @@ and explains removing it and restarting. Item pickup continues to work.
 ## Configuration
 
 ```toml
-# D2R Pickit 0.10.0 (stable config/ID: auto-pickup-anything)
+# D2R Pickit 0.10.1 (stable config/ID: auto-pickup-anything)
 # Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
 # Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true

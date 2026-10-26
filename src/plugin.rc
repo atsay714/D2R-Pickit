@@ -5,8 +5,8 @@ D2RL_PLUGIN_MANIFEST_RESOURCE_ID RCDATA { D2RL_PLUGIN_RESOURCE_DWORD(D2RL_PLUGIN
 D2R_PICKUP_COEXIST RCDATA { 0x5049434BL, 1L, 1L }
 
 1 VERSIONINFO
-FILEVERSION 0,10,0,0
-PRODUCTVERSION 0,10,0,0
+FILEVERSION 0,10,1,0
+PRODUCTVERSION 0,10,1,0
 BEGIN
   BLOCK "StringFileInfo"
   BEGIN
@@ -14,11 +14,11 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "atsay714"
       VALUE "FileDescription", "Walking and post-cast item and gold pickup."
-      VALUE "FileVersion", "0.10.0"
+      VALUE "FileVersion", "0.10.1"
       VALUE "InternalName", "auto-pickup-anything"
       VALUE "OriginalFilename", "d2rl-auto-pickup-anything.dll"
       VALUE "ProductName", "D2R Pickit"
-      VALUE "ProductVersion", "0.10.0"
+      VALUE "ProductVersion", "0.10.1"
     END
   END
   BLOCK "VarFileInfo"

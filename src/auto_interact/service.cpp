@@ -63,8 +63,8 @@ auto SaveValues(const S::Values* expected, const S::Values* draft, char* error, 
             : "Loader refused the Auto Interact config write. Nothing was applied.");
         Settings = runtime; ++Revision;
         if ((!LiveSettings && applied.enabled) || applied.validateOnly != runtime.validateOnly)
-            return fail(S::Result::RestartRequired, "Saved. Restart the game to activate Auto Interact; it was disabled or in validation mode at startup.");
-        return fail(S::Result::Success, "Saved. Auto Interact settings are active. Item pickup settings are unchanged.");
+            return fail(S::Result::RestartRequired, "Saved. Restart the game to enable Auto Interact.");
+        return fail(S::Result::Success, "Saved.");
     } catch (...) { return fail(S::Result::Unavailable, "Auto Interact settings could not be saved."); }
 }
 const S::Api SettingsApiTable{sizeof(S::Api), S::Version, ReadValues, SaveValues};

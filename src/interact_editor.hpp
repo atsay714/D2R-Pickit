@@ -18,10 +18,10 @@ public:
         Values value;
         if (!Valid(api) || api->read(&value) != Result::Success || !Valid(value)) return;
         original = value; view.values = value; view.available = true;
-        view.status = value.state & StartupBlocked ? "Auto Interact could not activate. Check the Pickit log for a retired DLL or compatibility failure. Item pickup remains available."
+        view.status = value.state & StartupBlocked ? "Auto Interact could not start. Check the Pickit log."
             : value.state & ValidationOnly ? "Validation mode: opening is disabled. Change validate_only in Pickit's [auto_interact] config and restart."
-            : value.state & RestartRequired ? "Auto Interact needs a restart to activate. Saved preferences can still be edited here."
-            : "Auto Interact is built into Pickit. Its toggle is independent of item pickup; Apply & Save changes this tab only.";
+            : value.state & RestartRequired ? "Restart the game to enable Auto Interact."
+            : "";
     }
     void Toggle(std::uint32_t index, bool value) {
         if (!view.available || index >= ToggleLabels.size()) return;
@@ -42,11 +42,11 @@ public:
         message[sizeof(message) - 1] = 0;
         if (result == Result::Success || result == Result::RestartRequired) {
             Open();
-            if (view.available) view.status = message[0] ? message : "Auto Interact settings saved.";
+            if (view.available) view.status = message[0] ? message : "Saved.";
         } else view.status = message[0] ? message : "Auto Interact settings could not be saved. Close and reopen before retrying.";
     }
 private:
-    void Changed() { view.dirty = !Same(original, view.values); view.status = view.dirty ? "Unsaved Auto Interact changes" : "No Auto Interact changes"; }
+    void Changed() { view.dirty = !Same(original, view.values); view.status = view.dirty ? "Unsaved changes" : ""; }
     Values original;
     const Api* api{};
 };

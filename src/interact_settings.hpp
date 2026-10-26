@@ -18,7 +18,7 @@ struct Api {
     Result(__cdecl* read)(Values*) noexcept;
     Result(__cdecl* save)(const Values* expected, const Values* draft, char* error, std::uint32_t capacity) noexcept;
 };
-inline constexpr std::array<const char*, 7> ToggleLabels{"Enable Auto Interact", "Loot containers", "Scenery corpses",
+inline constexpr std::array<const char*, 7> ToggleLabels{"Enable Auto Interact", "Loot containers", "Searchable corpses",
     "Rocks and rock piles", "Weapon racks", "Armor racks", "Open locked chests (uses keys)"};
 inline constexpr auto Valid(const Values& v) noexcept -> bool {
     return v.structSize >= sizeof(Values) && !(v.flags & ~127U) && v.range <= 20

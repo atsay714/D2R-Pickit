@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
         && !(GetWindowLongPtrW(list, GWL_STYLE) & WS_VISIBLE) && !(GetWindowLongPtrW(GetDlgItem(hwnd, 200), GWL_STYLE) & WS_VISIBLE));
     for (int i = 300; i <= 306; ++i) CHECK(IsWindowEnabled(GetDlgItem(hwnd, i)));
     wchar_t rangeText[64]{}; GetWindowTextW(GetDlgItem(hwnd, 320), rangeText, 64);
-    CHECK(std::wstring_view(rangeText) == L"Native reach (default)");
+    CHECK(std::wstring_view(rangeText) == L"Normal reach (default)");
     SendMessageW(GetDlgItem(hwnd, 302), BM_CLICK, 0, 0);
     CHECK(Last().kind == WindowActionKind::InteractToggle && Last().code == 2 && Last().value == 0);
     SendMessageW(GetDlgItem(hwnd, 320), CB_SETCURSEL, 20, 0);

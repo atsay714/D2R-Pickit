@@ -105,9 +105,7 @@ private:
             renderedConfig = draft; renderedQuery = query; renderedFiltered = overridesOnly; rowsReady = true;
         }
         if (windowMode) {
-            window.Update(matches, draft, source, status.empty()
-                ? "Check items to pick them up; uncheck to leave them. Bulk buttons affect every search result. Use category defaults clears item overrides. Apply & Save activates changes."
-                : status, !SameSettings(original, draft), overridesOnly, delegated, interact.view, rebuild);
+            window.Update(matches, draft, source, status, !SameSettings(original, draft), overridesOnly, delegated, interact.view, rebuild);
             return;
         }
         const auto count = interactTab ? Reimagined::InteractSettings::ToggleLabels.size() + 3 : options ? ToggleLabels.size() + 2 : matches.size();
@@ -129,7 +127,7 @@ private:
                 namespace S = Reimagined::InteractSettings;
                 const auto& v = interact.view.values;
                 const auto text = index < S::ToggleLabels.size() ? std::string(S::ToggleLabels[index]) + ": " + (v.flags & (1U << index) ? "On" : "Off")
-                    : index == 7 ? "Interaction range: " + (v.range ? std::to_string(v.range) : std::string("Native reach"))
+                    : index == 7 ? "Auto Interact distance: " + (v.range ? std::to_string(v.range) : std::string("Normal reach"))
                     : index == 8 ? "Scan interval (ms): " + std::to_string(v.intervalMs) : "Retry cooldown (ms): " + std::to_string(v.retryMs);
                 Text("Item" + suffix, text); continue;
             }
@@ -138,9 +136,9 @@ private:
                 const bool locked = delegated && ((index >= 11 && index < ToggleLabels.size()) || index == ToggleLabels.size() + 1);
                 Enable("Choice" + suffix, !locked);
                 const auto labelText = index < ToggleLabels.size() ? std::string(ToggleLabels[index]) + ": " + (ToggleValue(draft, index) ? "On" : "Off")
-                    : std::string(index == ToggleLabels.size() ? "Walking radius: " : "Post-cast radius: ")
+                    : std::string(index == ToggleLabels.size() ? "Pickup distance while moving: " : "Pickup distance after casting: ")
                         + std::to_string(index == ToggleLabels.size() ? draft.walkingRange : draft.teleportRange) + " (Change steps 1-20)";
-                Text("Item" + suffix, labelText + (locked ? " (Standalone config)" : ""));
+                Text("Item" + suffix, labelText + (locked ? " (Disabled)" : ""));
                 continue;
             }
             Enable("Choice" + suffix, true);
@@ -151,11 +149,12 @@ private:
                 : draft.Selects(row.code) ? "Default: pickup" : "Default: leave";
             Text("Item" + suffix, row.name + " (" + CodeText(row.code) + ")\n" + policy);
         }
-        Text("Source", interactTab ? "Auto Interact | Separate range: 0 = native reach, 1-20 = distance without walking. Collision and barrel kick reach apply." : options && delegated ? "Older Teleport: edit teleport-auto-pickup.toml and restart, or update Teleport to manage post-cast settings in Pickit." : source);
+        Text("Source", interactTab ? "Auto Interact | Normal reach uses the usual interaction distance. Choose 1-20 to open eligible objects without moving." : options && delegated ? "Post-cast distance and options are disabled because an older Teleport Auto Pickup is installed. Update it to version 0.3.5 or later, or uninstall it, then restart the game." : source);
         Text("Page", std::to_string(count) + (options ? " settings | Page " : " matching items | Page ") + std::to_string(page + 1) + " / " + std::to_string(pages)
-            + (overridesOnly ? " | Overrides only" : " | All items"));
-        Text("Status", interactTab ? interact.view.status : status.empty() ? (options && delegated
-            ? "Pickit's master switch stops item pickup. Teleport's own config still controls gold. Updating Teleport is optional."
+            + (overridesOnly ? " | Only custom item rules" : " | All items"));
+        Text("Status", interactTab ? (interact.view.status.empty()
+            ? "Walls still block interaction. Normal barrels require close range. Personal stashes, Evil Urns, exploding barrels, and quest objects stay manual." : interact.view.status)
+            : status.empty() ? (options ? (delegated ? "" : "Item rules take priority over category settings.")
             : "Change cycles Default / Include / Exclude. Codes select every quality; exclusions win.") : status);
         Enable("Previous", page > 0); Enable("Next", page + 1 < pages);
         Enable("Save", interactTab ? interact.view.available && interact.view.dirty : !SameSettings(original, draft));
@@ -289,9 +288,9 @@ private:
         if (!context->WriteConfig(updated.c_str())) { status = "Loader refused the config write. Nothing was applied."; Render(); return; }
         commit(std::move(applied)); original = draft;
         const auto runtime = snapshot();
-        status = !runtime.enabled ? "Saved. D2R Pickit is off. Your selections are retained. Other plugins keep their own behavior."
+        status = !runtime.enabled ? "Saved. Item pickup is off."
             : runtime.validateOnly ? "Saved. Validation mode is active; pickups remain disabled."
-            : "Saved. Pickup settings are active.";
+            : "Saved.";
         Render();
     }
     auto NameFor(std::uint32_t code) const -> std::string {

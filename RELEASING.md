@@ -52,6 +52,31 @@ Pushing a tag by itself does not upload anything. If configuration was missing,
 add it and rerun the failed job. Avoid rerunning an upload that already succeeded:
 the POST has no automatic retry, so duplicate-version behavior is left to the Hub.
 
+## When GitHub cannot start a hosted runner
+
+An account payment or spending-limit annotation is a GitHub account restriction,
+not a compiler or workflow failure. Changing this YAML cannot resolve it. The
+account owner must review Billing & plans before hosted jobs can run again.
+Do not change billing, make the repository public, or remove verification as a
+publishing workaround.
+
+A locally verified release can still be published through the Hub dashboard:
+
+1. Build the exact committed version with `build.cmd`; run the packaging tests
+   and `package.py`. Verify the generated checksums and one-DLL installation
+   layout. Independently rebuild the source ZIP before uploading.
+2. Open the existing Hub project's **Files** tab. Confirm that this version has
+   not already been uploaded, enter its version and release notes, and select
+   the native ZIP. Keep the listing description unchanged unless separately
+   requested.
+3. Submit the release through the normal VirusTotal scanning flow. Verify its
+   scan/publication status and the public page's version and SHA-256.
+4. Record that validation was local and hosted CI did not run. Do not dispatch
+   the automated upload later for a version already published manually.
+
+The 0.10.0 release run was blocked by this account restriction before any build
+step or Hub upload. The 0.10.1 update uses the local publishing path.
+
 ## Retry after fixing a publishing workflow
 
 If an upload failed before creating the Hub version, run the workflow on

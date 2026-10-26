@@ -1,4 +1,4 @@
-# D2R Pickit 0.10.0 (stable config/ID: auto-pickup-anything)
+# D2R Pickit 0.10.1 (stable config/ID: auto-pickup-anything)
 # Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
 # Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true

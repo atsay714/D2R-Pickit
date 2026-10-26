@@ -16,7 +16,7 @@ inline auto PanelLayout() -> std::string {
     label("Title", 40, 50, "D2R Pickit");
     label("Source", 90, 45, "Reading loaded item tables...");
     json += R"({"type":"InputTextBoxWidget","name":"Search","fields":{"rect":{"x":110,"y":145,"width":740,"height":45},"maxStringLength":80,"canInsertNewlines":false,"backgroundColor":"$FontColorTransparent","fontType":"12ptF","fontStyle":{"fontFace":"BlizzardGlobal","fontColor":"$FontColorWhite","pointSize":"$SmallFontSize"},"hint":{"text":"Search item name or code","style":"$StyleModalDialogDescription"}}},)";
-    button("Filter", 910, 135, "All / Overrides");
+    button("Filter", 910, 135, "All / Custom rules");
     button("Options", 910, 40, "Options / Items");
     // Eight reusable rows keep both the native widget count and panel height
     // bounded regardless of the number of vanilla/mod item definitions.
