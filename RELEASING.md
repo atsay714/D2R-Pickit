@@ -8,6 +8,12 @@ Windows x64 DLL, verifies its metadata, creates the ZIPs, transfers the build
 artifacts to Linux, checks their SHA-256 checksums, and uploads the **native**
 global-layout ZIP to the Hub. Release notes become the Hub changelog.
 
+Both jobs use Namespace runners: Windows Server 2022 AMD64 (4 vCPU / 8 GB)
+for the native build/tests and Ubuntu 24.04 AMD64 (2 vCPU / 4 GB) for upload.
+The Namespace Runners GitHub App must be connected to this repository; the
+workflow uses Namespace's standard machine labels, without a custom profile.
+See [Namespace runner labels](https://namespace.so/docs/reference/github-actions/runner-configuration).
+
 The native package is mod agnostic. The additional Reimagined-layout and
 source ZIPs remain available in the workflow's package artifact for 14 days.
 The workflow does not attach files to the GitHub release itself.
@@ -54,11 +60,15 @@ the POST has no automatic retry, so duplicate-version behavior is left to the Hu
 
 ## When GitHub cannot start a hosted runner
 
-An account payment or spending-limit annotation is a GitHub account restriction,
-not a compiler or workflow failure. Changing this YAML cannot resolve it. The
-account owner must review Billing & plans before hosted jobs can run again.
-Do not change billing, make the repository public, or remove verification as a
-publishing workaround.
+An account payment or spending-limit annotation is a GitHub-hosted runner
+restriction, not a compiler failure. This workflow now uses Namespace instead.
+Retry an unpublished Hub version through **Run workflow** on **main**, supplying
+its existing release tag. Re-running an old release event uses its original
+workflow and therefore keeps the old GitHub-hosted runner selection.
+
+If a Namespace job stays queued, check the Namespace GitHub integration and
+the requested platform/labels. Do not change billing, make the repository public,
+or remove verification as a publishing workaround.
 
 A locally verified release can still be published through the Hub dashboard:
 
@@ -74,8 +84,9 @@ A locally verified release can still be published through the Hub dashboard:
 4. Record that validation was local and hosted CI did not run. Do not dispatch
    the automated upload later for a version already published manually.
 
-The 0.10.0 release run was blocked by this account restriction before any build
-step or Hub upload. The 0.10.1 update uses the local publishing path.
+The original 0.10.0 and 0.10.1 release runs were blocked by this account
+restriction before any build step or Hub upload. The 0.10.1 deployment retry
+uses the Namespace workflow from main while building the original v0.10.1 tag.
 
 ## Retry after fixing a publishing workflow
 
