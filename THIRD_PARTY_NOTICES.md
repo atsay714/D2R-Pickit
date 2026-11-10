@@ -13,3 +13,8 @@ Project author and maintainer: [atsay714](https://github.com/atsay714).
 See [UPSTREAM.md](UPSTREAM.md) for exact source commits and adaptation details.
 The project author field identifies the current maintainer; it does not replace
 the original copyright notices on included code.
+
+Potion belt routing and its settings controls are contributed by RuffnecKk,
+copyright 2026 RuffnecKk, under the MIT license. The full notice is in
+third_party/RuffnecKkNativeStats/LICENSE. Stack Manager is optional and is not
+redistributed; its versioned routing interface is included in src/potion_routing/.

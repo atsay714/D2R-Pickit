@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
     config.enabled = false;
     window.Update({}, config, "ExampleMod", "Pickit is off", false, false, false, interact);
     const auto tabs = GetDlgItem(hwnd, 107);
-    CHECK(TabCtrl_GetItemCount(tabs) == 3);
+    CHECK(TabCtrl_GetItemCount(tabs) == 4);
     SendMessageW(tabs, TCM_SETCURSEL, 2, 0);
     NMHDR selectedTab{tabs, 107, TCN_SELCHANGE}; SendMessageW(hwnd, WM_NOTIFY, 107, reinterpret_cast<LPARAM>(&selectedTab));
     CHECK(AwaitText(hwnd, L"Independent Auto Interact changes"));
@@ -203,6 +203,26 @@ int main(int argc, char** argv) {
     SendMessageW(GetDlgItem(hwnd, 320), CB_SETCURSEL, 0, 0);
     SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(320, CBN_SELCHANGE), reinterpret_cast<LPARAM>(GetDlgItem(hwnd, 320)));
     CHECK(Last().kind == WindowActionKind::InteractNumber && Last().value == 0);
+    SendMessageW(tabs, TCM_SETCURSEL, 3, 0);
+    SendMessageW(hwnd, WM_NOTIFY, 107, reinterpret_cast<LPARAM>(&selectedTab));
+    CHECK((GetWindowLongPtrW(GetDlgItem(hwnd, 415), GWL_STYLE) & WS_VISIBLE)
+        && !(GetWindowLongPtrW(GetDlgItem(hwnd, 300), GWL_STYLE) & WS_VISIBLE));
+    for (int id = 400; id < 416; ++id)
+        CHECK(SendMessageW(GetDlgItem(hwnd, id), BM_GETCHECK, 0, 0) == BST_UNCHECKED);
+    SendMessageW(GetDlgItem(hwnd, 415), BM_CLICK, 0, 0);
+    CHECK(Last().kind == WindowActionKind::PotionToggle && Last().code == 15 && Last().value == 1);
+    SendMessageW(GetDlgItem(hwnd, 403), BM_CLICK, 0, 0);
+    CHECK(Last().kind == WindowActionKind::PotionToggle && Last().code == 3 && Last().value == 1);
+    config.potionRouting.enabled = true;
+    config.potionRouting.families[0] = {{4, 2, 0, 0}, 2, true};
+    window.Update({}, config, "ExampleMod", "Potion routing draft", true, false, false, interact, false);
+    CHECK(AwaitText(hwnd, L"Potion routing draft"));
+    CHECK(SendMessageW(GetDlgItem(hwnd, 415), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    CHECK(SendMessageW(GetDlgItem(hwnd, 403), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    CHECK(SendMessageW(GetDlgItem(hwnd, 404), BM_GETCHECK, 0, 0) == BST_CHECKED);
+    CHECK(IsWindowEnabled(GetDlgItem(hwnd, 104)));
+    SendMessageW(tabs, TCM_SETCURSEL, 2, 0);
+    SendMessageW(hwnd, WM_NOTIFY, 107, reinterpret_cast<LPARAM>(&selectedTab));
     if (argc > 3) Capture(hwnd, argv[3]);
     window.Update({}, config, "ExampleMod", "Pickit is off", false, false);
     CHECK(Await([&] { return !IsWindowEnabled(GetDlgItem(hwnd, 300))

@@ -2,6 +2,7 @@
 #include <D2RLPlugin/api.h>
 #include <Windows.h>
 #include "policy.hpp"
+#include "potion_routing/module.hpp"
 #include "compatibility.hpp"
 #include "pickup_bridge.hpp"
 #include "action_hooks.hpp"
@@ -170,19 +171,23 @@ void ScanNative(void* player, std::uint32_t distanceLimit, std::uint64_t now) no
         void** rooms{}; std::uint32_t count{};
         GetRoomNeighbours(room, &rooms, &count);
         if (!rooms || !count || count > 4096) return;
+        void* selectedUnit{};
         PickupIdentity selected{}; bool found{}; std::int32_t nearest = INT_MAX; std::size_t visited{};
         for (std::uint32_t i = 0; i < count; ++i) for (void* unit = GetRoomFirstUnit(rooms[i]); unit; unit = GetNextUnit(unit)) {
             if (++visited > 262144) return;
             if (UnitType(unit) != ItemType || UnitMode(unit) != GroundMode) continue;
             const auto code = GetItemCode(unit);
             if (!Settings.Selects(code)) continue;
+            const auto potion = PotionRouting::ClassifyPackedCode(code);
+            if (Settings.potionRouting.enabled && potion.family != PotionRouting::Family::Unknown
+                && !PotionRouting::CanRoute(player, unit, Settings.potionRouting.families[static_cast<std::size_t>(potion.family)])) continue;
             const auto distance = UnitDistance(player, unit);
             if (distance < 0 || static_cast<std::uint32_t>(distance) > distanceLimit
                 || distance >= nearest || UnitCollision(player, unit, PickupCollisionMask) != 0) continue;
             const PickupIdentity candidate{playerId, UnitId(unit), code};
             if (!candidate.Valid()) continue;
             if (!ItemReady(candidate, now, epoch)) { Metrics.retrySkips.fetch_add(1, std::memory_order_relaxed); continue; }
-            selected = candidate; found = true; nearest = distance;
+            selected = candidate; selectedUnit = unit; found = true; nearest = distance;
         }
         if (!found) return;
         // Arm every request before native code: false, an exception, or a
@@ -190,9 +195,12 @@ void ScanNative(void* player, std::uint32_t distanceLimit, std::uint64_t now) no
         // Successful removals disappear from enumeration; other items stay ready.
         if (!BeginItemRequest(selected, now, epoch)) { Metrics.retrySkips.fetch_add(1, std::memory_order_relaxed); return; }
         const auto attempt = Metrics.attempts.fetch_add(1, std::memory_order_relaxed) + 1;
-        // This is the ordinary native request. No belt hook, destination
-        // override, inventory fallback, stack manipulation or deposit call.
-        const bool picked = Pickup(player, selected.item, true, distanceLimit, true, false);
+        // Custom routing applies only to selected potions while opted in.
+        // Other items and manual pickups retain their native placement.
+        const auto potion = PotionRouting::ClassifyPackedCode(selected.code);
+        const bool picked = !Settings.potionRouting.enabled || potion.family == PotionRouting::Family::Unknown
+            ? Pickup(player, selected.item, true, distanceLimit, true, false)
+            : PotionRouting::Pickup(player, selectedUnit, selected.item, distanceLimit, Settings.potionRouting.families[static_cast<std::size_t>(potion.family)]);
         (picked ? Metrics.picked : Metrics.refused).fetch_add(1, std::memory_order_relaxed);
         if (Context && Settings.diagnosticsEnabled && (attempt <= 6 || attempt % 100 == 0)) {
             char message[192]{};
@@ -295,6 +303,7 @@ auto Status(D2R::Game::Client*, const D2RL::ConsoleCommandContext* command, void
 }
 void ResetRuntime() noexcept {
     SettingsPanel.Stop();
+    PotionRouting::Stop();
     AutoInteract::Stop();
     Reimagined::EmbeddedTeleportPickup::Stop(); EmbeddedTeleportReady = false; StandaloneTeleport = false;
     { std::lock_guard lock(ScanApiMutex); ScanApiReady = false; }
@@ -321,17 +330,18 @@ D2RL_PLUGIN_EXPORT auto D2RLoaderLoadPlugin(const D2RL::PluginContext* context) 
     StandaloneTeleport = StandaloneTeleportPresent(context);
     {
         if (!ValidateRuntime()) { context->LogError("AutoPickupAnything: compatibility check failed; no hooks installed."); return false; }
-        if (!PrepareRetryLifecycle(!Settings.validateOnly)) return false;
+        if (!PotionRouting::Prepare(context)) return false;
+        if (!PrepareRetryLifecycle(!Settings.validateOnly)) { PotionRouting::Stop(); return false; }
         if (!StandaloneTeleport) {
             if (!Reimagined::EmbeddedTeleportPickup::Start(context, PostCastConfig(Settings), ExternalRangeScan, !Reimagined::PickupCoexist::Inspect(context, L"d2rl-teleport-auto-pickup.dll", Reimagined::PickupCoexist::Role::YieldingTeleport).cooperative)) {
-                Reimagined::EmbeddedTeleportPickup::Stop(); StopRetryLifecycle();
+                Reimagined::EmbeddedTeleportPickup::Stop(); StopRetryLifecycle(); PotionRouting::Stop();
                 context->LogError("D2R Pickit: built-in post-cast compatibility/services failed; no walking hooks installed."); return false;
             }
             EmbeddedTeleportReady = true;
         } else context->LogInfo("D2R Pickit: older Teleport DLL detected; legacy post-cast pickup remains active. Edit teleport-auto-pickup.toml and restart to change its settings. Optionally update Teleport to 0.3.5+ to manage them in Pickit.");
         if (Settings.validateOnly) context->LogInfo("AutoPickupAnything: VALIDATION PASSED; diagnostic mode, no hooks installed.");
         else {
-            ResolveRuntime(); if (!InstallMutations()) { Reimagined::EmbeddedTeleportPickup::Stop(); EmbeddedTeleportReady = false; StopRetryLifecycle(); return false; }
+            ResolveRuntime(); if (!PotionRouting::Activate() || !InstallMutations()) { Reimagined::EmbeddedTeleportPickup::Stop(); EmbeddedTeleportReady = false; StopRetryLifecycle(); PotionRouting::Stop(); return false; }
             { std::lock_guard lock(ScanApiMutex); ScanApiReady = true; }
             context->LogInfo("D2R Pickit 0.10.1 active; normal stacking and placement, built-in post-cast or standalone delegation.");
         }

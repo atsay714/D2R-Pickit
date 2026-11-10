@@ -1,5 +1,6 @@
 #pragma once
 #include "catalog.hpp"
+#include "potion_routing/policy.hpp"
 #include "auto_interact/policy.hpp"
 #include <algorithm>
 #include <array>
@@ -21,6 +22,7 @@ constexpr auto PackItemCode(std::string_view code) noexcept -> std::uint32_t {
 }
 struct Config {
     bool enabled{true}, validateOnly{};
+    PotionRouting::Config potionRouting;
     AutoInteract::Config interact;
     bool interactConfigured{};
     bool walkingEnabled{true}, teleportEnabled{true}, teleportGold{true}, teleportItems{true};
@@ -82,8 +84,10 @@ inline auto ParseItemCodes(std::string_view value, std::vector<std::uint32_t>& c
 }
 inline auto ParseConfig(std::string_view input, Config& output, std::string& error) -> bool {
     Config parsed;
-    enum class Section { Root, Vanilla, Reimagined, ItemCodes, D2rl, Walking, Teleport, Interact } section{Section::Root};
-    std::array<bool, 8> sections{};
+    enum class Section { Root, Vanilla, Reimagined, ItemCodes, D2rl, Walking, Teleport, Interact, PotionRouting, PotionHealth, PotionMana, PotionRejuvenation } section{Section::Root};
+    std::array<bool, 12> sections{};
+    std::array<std::array<bool,2>,3> potionSeen{};
+    bool potionEnabledSeen{};
     std::string interactText;
     std::array<bool, VanillaGroups.size()> vanillaSeen{};
     std::array<bool, ReimaginedGroups.size()> reimaginedSeen{};
@@ -106,6 +110,10 @@ inline auto ParseConfig(std::string_view input, Config& output, std::string& err
             else if (line == "[walking]") section = Section::Walking;
             else if (line == "[teleport]") section = Section::Teleport;
             else if (line == "[auto_interact]") { section = Section::Interact; parsed.interactConfigured = true; }
+            else if (line == "[potion_routing]") section = Section::PotionRouting;
+            else if (line == "[potion_routing.health]") section = Section::PotionHealth;
+            else if (line == "[potion_routing.mana]") section = Section::PotionMana;
+            else if (line == "[potion_routing.rejuvenation]") section = Section::PotionRejuvenation;
             else return fail("unknown section; use the current plugin config");
             auto& seen = sections[static_cast<std::size_t>(section)];
             if (seen) return fail("duplicate section");
@@ -116,6 +124,30 @@ inline auto ParseConfig(std::string_view input, Config& output, std::string& err
         const auto eq = line.find('=');
         if (eq == std::string_view::npos) return fail("expected key=value");
         const auto key = Trim(line.substr(0, eq)), value = Trim(line.substr(eq + 1));
+        if (section == Section::PotionRouting) {
+            if (key != "enabled" || potionEnabledSeen || !ParseBool(value, parsed.potionRouting.enabled))
+                return fail("potion_routing accepts one enabled=true/false setting");
+            potionEnabledSeen = true;
+            continue;
+        }
+        if (section >= Section::PotionHealth) {
+            const auto family = static_cast<std::size_t>(section) - static_cast<std::size_t>(Section::PotionHealth);
+            const auto k = key == "belt_columns" ? 0U : key == "inventory_fallback" ? 1U : 2U;
+            if (k == 2 || potionSeen[family][k]) return fail("unknown or duplicate potion routing setting");
+            auto& route = parsed.potionRouting.families[family];
+            std::string list(value);
+            if (k == 0 && !value.empty() && value.front() == '[') while (list.find(']') == std::string::npos) {
+                if (start > input.size()) return fail("unterminated belt-column list");
+                ++lineNumber;
+                const auto nextEnd = input.find('\n', start);
+                list += ' ';
+                list += Trim(WithoutComment(input.substr(start, nextEnd == std::string_view::npos ? input.size() - start : nextEnd - start)));
+                start = nextEnd == std::string_view::npos ? input.size() + 1 : nextEnd + 1;
+            }
+            if (!(k == 0 ? PotionRouting::ParseColumns(Trim(list), route) : ParseBool(value, route.inventoryFallback)))
+                return fail("belt_columns needs unique columns 1..4; inventory_fallback needs true/false");
+            potionSeen[family][k] = true; continue;
+        }
         if (section == Section::Walking || section == Section::Teleport) {
             const bool walking = section == Section::Walking;
             constexpr std::array<std::string_view, 7> keys{"enabled", "pickup_range", "gold", "items", "interval_ms", "window_ms", "diagnostics_enabled"};

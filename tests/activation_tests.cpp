@@ -46,6 +46,10 @@ auto Setup(const std::string& text, bool compatible) -> const D2RL::PluginContex
     LoaderFixture::Api.checkExpectedBytes = CheckImage;
     return &LoaderFixture::Context;
 }
+std::uint64_t rejectedPotionWitness{};
+bool __cdecl CheckPotionWitness(const D2RL::PluginContext* c,std::uint64_t rva,const void* bytes,std::uint32_t size) noexcept {
+    return rva!=rejectedPotionWitness && CheckImage(c,rva,bytes,size);
+}
 std::map<std::uint64_t, std::uint64_t> slots;
 std::map<std::uint64_t, std::string> owners;
 bool __cdecl CheckOwned(const D2RL::PluginContext* context, std::uint64_t rva, const void* expected, std::uint32_t size) noexcept {
@@ -130,7 +134,7 @@ int main(int argc, char** argv) {
     CHECK(D2RLoaderLoadPlugin(context));
     CHECK(!Settings.validateOnly && Settings.enabled);
     CHECK(LoaderFixture::Patches == 18 && LoaderFixture::Checks > 10);
-    CHECK(LoaderFixture::InlineHooks == 0);
+    CHECK(LoaderFixture::InlineHooks == 1); // One scoped potion belt hook.
     CHECK(LoaderFixture::Listeners == 6);
     CHECK(!D2RL::HasFlag(D2RLoaderGetPluginInfo()->flags, D2RL::PluginFlags::ModScopedOnly));
     D2RLoaderUnloadPlugin();
@@ -185,6 +189,14 @@ int main(int argc, char** argv) {
         CHECK(!D2RLoaderLoadPlugin(context) && LoaderFixture::Patches == 0);
         D2RLoaderUnloadPlugin();
     }
+    for(const auto rva:{std::uint64_t{0x3862D0},std::uint64_t{0x38B070},std::uint64_t{0x38B108},std::uint64_t{0x38643D},std::uint64_t{0x3864A7},std::uint64_t{0x34A360},std::uint64_t{0x349720}}) {
+        context=Setup(text,true);rejectedPotionWitness=rva;
+        LoaderFixture::Api.checkExpectedBytes=CheckPotionWitness;
+        CHECK(!D2RLoaderLoadPlugin(context));
+        CHECK(LoaderFixture::Patches==0 && LoaderFixture::InlineHooks==0);
+        D2RLoaderUnloadPlugin();
+    }
+    rejectedPotionWitness=0;
     std::cout << "Default config activates unchanged; incompatible native fingerprint blocks patches; diagnostic-only mode remains optional; failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

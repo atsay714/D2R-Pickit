@@ -85,7 +85,8 @@ void Window::Update(const std::vector<Entry>& entries, const Config& config, con
     }
     {
         std::lock_guard lock(mutex);
-        if (updateItems) { pendingRows = std::move(next); pendingConfig = config; ++pendingRowsRevision; }
+        if (updateItems) { pendingRows = std::move(next); ++pendingRowsRevision; }
+        pendingConfig = config;
         pendingSource = Wide(source); pendingStatus = Wide(status);
         pendingDirty = dirty; pendingFiltered = filtered; pendingDelegated = delegated;
         pendingInteract = interact;
@@ -176,6 +177,13 @@ void Window::Layout() {
         MoveWindow(rangeLabels[i], x, px(290), width / 2 - px(24), px(24), TRUE);
         MoveWindow(ranges[i], x, px(318), px(100), px(200), TRUE);
     }
+    MoveWindow(potionToggles[15],margin+px(16),px(87),width-px(32),px(26),TRUE);
+    for(std::size_t family=0;family<3;++family) {
+        MoveWindow(potionLabels[family],margin+px(16),px(125+static_cast<int>(family)*80),width-px(32),px(24),TRUE);
+        for(std::size_t choice=0;choice<5;++choice)
+            MoveWindow(potionToggles[family*5+choice],margin+px(16)+static_cast<int>(choice)*width/5,px(153+static_cast<int>(family)*80),width/5-px(12),px(26),TRUE);
+    }
+    MoveWindow(potionHelp,margin+px(16),px(385),width-px(32),px(65),TRUE);
     MoveWindow(ownership, margin + px(16), px(360), width - px(32), px(85), TRUE);
     for (std::size_t i = 0; i < interactToggles.size(); ++i)
         MoveWindow(interactToggles[i], margin + px(16) + static_cast<int>(i / 4) * width / 2,
@@ -252,6 +260,12 @@ void Window::Refresh() {
         SendMessageW(toggles[i], BM_SETCHECK, ToggleValue(config, i) ? BST_CHECKED : BST_UNCHECKED, 0);
         EnableWindow(toggles[i], !delegated || i < 11);
     }
+    for(std::size_t i=0;i<potionToggles.size();++i)
+        SendMessageW(potionToggles[i],BM_SETCHECK,PotionRouting::ToggleValue(config.potionRouting,i)?BST_CHECKED:BST_UNCHECKED,0);
+    for(std::size_t i=0;i<3;++i) {
+        const auto title=std::string(PotionRouting::FamilyNames[i])+" - column priority "+PotionRouting::ColumnsText(config.potionRouting.families[i]);
+        SetWindowTextW(potionLabels[i],Wide(title).c_str());
+    }
     SendMessageW(ranges[0], CB_SETCURSEL, config.walkingRange - 1, 0);
     SendMessageW(ranges[1], CB_SETCURSEL, config.teleportRange - 1, 0);
     EnableWindow(ranges[1], !delegated);
@@ -293,6 +307,10 @@ void Window::Refresh() {
     ShowTab();
 }
 void Window::ShowTab() {
+    const bool potions = TabCtrl_GetCurSel(tabs) == 3;
+    for(auto child:potionToggles)ShowWindow(child,potions?SW_SHOW:SW_HIDE);
+    for(auto child:potionLabels)ShowWindow(child,potions?SW_SHOW:SW_HIDE);
+    ShowWindow(potionHelp,potions?SW_SHOW:SW_HIDE);
     const bool general = TabCtrl_GetCurSel(tabs) == 0;
     const bool items = TabCtrl_GetCurSel(tabs) == 1;
     const bool interact = TabCtrl_GetCurSel(tabs) == 2;
@@ -305,7 +323,7 @@ void Window::ShowTab() {
     for (auto child : interactLabels) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     for (auto child : interactNumbers) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     ShowWindow(interactHelp, interact ? SW_SHOW : SW_HIDE);
-    SetWindowTextW(sourceLabel, interact ? L"Auto Interact" : currentSource.c_str());
+    SetWindowTextW(sourceLabel, potions ? L"Potion routing" : interact ? L"Auto Interact" : currentSource.c_str());
     SetWindowTextW(statusLabel, interact ? Wide(activeInteract.status).c_str()
         : items && currentStatus.empty() ? L"Check items to pick them up. Uncheck items to leave them. The buttons below affect all search results."
         : currentStatus.c_str());
@@ -331,6 +349,13 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         TCITEMW tab{}; tab.mask = TCIF_TEXT; tab.pszText = const_cast<LPWSTR>(L"General"); TabCtrl_InsertItem(tabs, 0, &tab);
         tab.pszText = const_cast<LPWSTR>(L"Item picker"); TabCtrl_InsertItem(tabs, 1, &tab);
         tab.pszText = const_cast<LPWSTR>(L"Auto Interact"); TabCtrl_InsertItem(tabs, 2, &tab);
+        tab.pszText = const_cast<LPWSTR>(L"Potion routing"); TabCtrl_InsertItem(tabs, 3, &tab);
+        for(std::size_t i=0;i<16;++i) {
+            const auto label=i==15?std::wstring(L"Use custom potion routing"):i%5==4?std::wstring(L"Inventory overflow"):L"Column "+std::to_wstring(i%5+1);
+            potionToggles[i]=control(L"BUTTON",label.c_str(),WS_TABSTOP|BS_AUTOCHECKBOX,400+static_cast<int>(i));
+        }
+        for(std::size_t i=0;i<3;++i)potionLabels[i]=control(L"STATIC",L"",0,420+static_cast<int>(i));
+        potionHelp=control(L"STATIC",L"When custom routing is off, normal pickup placement is used. Choose potions in General or Item picker. Columns are numbered left to right. Newly checked columns are tried last. With no columns, overflow sends potions to inventory; otherwise they stay on the ground.",0,424);
         for (std::size_t i = 0; i < interactToggles.size(); ++i)
             interactToggles[i] = control(L"BUTTON", Wide(Reimagined::InteractSettings::ToggleLabels[i]).c_str(), WS_TABSTOP | BS_AUTOCHECKBOX, 300 + static_cast<int>(i));
         const std::array<const wchar_t*, 3> interactText{L"Auto Interact distance", L"Scan interval (ms)", L"Retry cooldown (ms)"};
@@ -388,7 +413,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
                 rect.top + (rect.bottom - rect.top - height) / 2, width, height, SWP_NOACTIVATE);
         }
         ShowWindow(hwnd, SW_SHOW); SetForegroundWindow(hwnd);
-        SetFocus(TabCtrl_GetCurSel(tabs) == 0 ? toggles[0] : TabCtrl_GetCurSel(tabs) == 2 ? interactToggles[0] : search);
+        SetFocus(TabCtrl_GetCurSel(tabs) == 0 ? toggles[0] : TabCtrl_GetCurSel(tabs) == 2 ? interactToggles[0] : TabCtrl_GetCurSel(tabs) == 3 ? potionToggles[15] : search);
         Repaint(); return 0;
     }
     case RefreshMessage: Refresh(); return 0;
@@ -434,6 +459,10 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         return 0;
     }
     case WM_COMMAND:
+        if(LOWORD(wp)>=400 && LOWORD(wp)<416 && HIWORD(wp)==BN_CLICKED && !updating) {
+            const auto i=static_cast<std::uint32_t>(LOWORD(wp)-400);
+            Emit({WindowActionKind::PotionToggle,i,{},SendMessageW(potionToggles[i],BM_GETCHECK,0,0)==BST_CHECKED?1:0});return 0;
+        }
         if (LOWORD(wp) >= 300 && LOWORD(wp) < 300 + interactToggles.size() && HIWORD(wp) == BN_CLICKED && !updating && activeInteract.available) {
             const auto index = static_cast<std::uint32_t>(LOWORD(wp) - 300);
             Emit({WindowActionKind::InteractToggle, index, {}, SendMessageW(interactToggles[index], BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0}); return 0;

@@ -50,6 +50,11 @@ auto __fastcall Original(void* game, void* player, void* skill, std::uint32_t mo
     return -123;
 }
 auto __cdecl Hook(const D2RL::PluginContext*, const D2RL::InlineHookRegistration* hook) noexcept -> bool {
+    if (hook->rva == 0x3862D0) {
+        CHECK(Check(nullptr, hook->rva, hook->expected, hook->expectedSize));
+        *hook->original = reinterpret_cast<void*>(1);
+        return true;
+    }
     CHECK(hook->rva == C::PlayerActionRva && hook->expectedSize == C::PlayerActionBytes.size());
     CHECK(Check(nullptr, hook->rva, hook->expected, hook->expectedSize));
     if (failHook) return false;

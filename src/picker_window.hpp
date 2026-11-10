@@ -7,7 +7,7 @@
 #include <memory>
 
 namespace RuffnecKk::AutoPickup::Picker {
-enum class WindowActionKind { Search, Filter, Choice, Save, Close, Toggle, Range, BulkChoice, Tab, InteractToggle, InteractNumber };
+enum class WindowActionKind { Search, Filter, Choice, Save, Close, Toggle, Range, BulkChoice, Tab, InteractToggle, InteractNumber, PotionToggle };
 struct WindowAction { WindowActionKind kind{}; std::uint32_t code{}; Choice choice{}; int value{};
     std::shared_ptr<const std::vector<std::uint32_t>> targets;
 };
@@ -55,6 +55,9 @@ private:
     std::array<HWND, Reimagined::InteractSettings::ToggleLabels.size()> interactToggles{};
     std::array<HWND, 3> interactLabels{}, interactNumbers{};
     HWND interactHelp{};
+    std::array<HWND,16> potionToggles{};
+    std::array<HWND,3> potionLabels{};
+    HWND potionHelp{};
     Reimagined::InteractSettings::View pendingInteract, activeInteract;
     std::wstring currentSource, currentStatus;
     bool pickitDirty{};

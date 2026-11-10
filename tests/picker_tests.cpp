@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
     std::vector<Entry> large;
     for (unsigned i = 0; i < 1000; ++i) large.push_back({i + 1, "Mod item " + std::to_string(i)});
     CHECK(Search(large, initial, "", false).size() == 1000);
-    CHECK((1000 + PageSize - 1) / PageSize == 125);
+    static_assert((1000 + PageSize - 1) / PageSize == 125);
 
     std::string output, error;
     const std::string current = "# retain my comment\r\n[vanilla]\r\ngems = false\r\n[item_codes]\r\ninclude = [ # ] inside a comment\r\n] # include note\r\nexclude = [] # exclude note\r\n[d2rl]\r\nmatch = [\"enabled\"]\r\ncustom = \"retain me\"\r\n";
@@ -77,6 +77,49 @@ int main(int argc, char** argv) {
     CHECK(output.find("enabled = false # master\r\n") != std::string::npos && output.find("runes = false # runes\r\n") != std::string::npos);
     common.walkingRange = 0;
     CHECK(!SaveSettings("", initial, common, output, error));
+
+    // Old configurations preserve native potion placement. Routing persists live,
+    // retains comments and loader metadata, and detects concurrent edits.
+    Config routingOriginal, routingDraft;
+    CHECK(ParseConfig("# existing config\n[vanilla]\nhealth_potions=true\n", routingOriginal, error));
+    CHECK(!routingOriginal.potionRouting.enabled && routingOriginal.vanilla[3]);
+    routingDraft = routingOriginal;
+    RuffnecKk::PotionRouting::SetToggle(routingDraft.potionRouting, 15, true);
+    RuffnecKk::PotionRouting::SetToggle(routingDraft.potionRouting, 3, true);
+    RuffnecKk::PotionRouting::SetToggle(routingDraft.potionRouting, 1, true);
+    RuffnecKk::PotionRouting::SetToggle(routingDraft.potionRouting, 4, true);
+    CHECK(RuffnecKk::PotionRouting::ColumnsText(routingDraft.potionRouting.families[0]) == "[4, 2]");
+    CHECK(SaveSettings("# existing config\n[vanilla]\nhealth_potions=true\n[d2rl]\nmatch=[]\n", routingOriginal, routingDraft, output, error));
+    CHECK(ParseConfig(output, reread, error) && SameSettings(reread, routingDraft));
+    CHECK(output.find("# existing config") != std::string::npos);
+    CHECK(!SaveSettings(output, routingOriginal, routingDraft, output, error));
+    const auto routed = reread;
+    reread.potionRouting.enabled = false;
+    CHECK(SaveSettings(output, routed, reread, output, error));
+    CHECK(ParseConfig(output, reread, error) && !reread.potionRouting.enabled);
+    CHECK(RuffnecKk::PotionRouting::ColumnsText(reread.potionRouting.families[0]) == "[4, 2]");
+    for (const auto* invalid : {"[potion_routing]\nenabled=1", "[potion_routing]\nenabled=true\nenabled=false",
+        "[potion_routing.health]\nbelt_columns=[1,1]", "[potion_routing.mana]\nbelt_columns=[5]",
+        "[potion_routing.rejuvenation]\ninventory_fallback=1"})
+        CHECK(!ParseConfig(invalid, reread, error));
+
+    for (const auto* columns : {"[1, 2,]", "[\n 1, # first ] is a comment\n\n 2,\n]", "[\r\n1,\r\n2,\r\n]"}) {
+        const auto text = std::string("[potion_routing.health]\nbelt_columns = ") + columns
+            + " # keep tail\ninventory_fallback = true\n[potion_routing]\nenabled = false\n";
+        Config before, after;
+        CHECK(ParseConfig(text, before, error));
+        CHECK(!before.potionRouting.enabled && before.potionRouting.families[0].count == 2);
+        CHECK(before.potionRouting.families[0].inventoryFallback);
+        after = before;
+        CHECK(RuffnecKk::PotionRouting::ParseColumns("[4, 3,]", after.potionRouting.families[0]));
+        CHECK(SaveSettings(text, before, after, output, error));
+        CHECK(ParseConfig(output, reread, error) && SameSettings(reread, after));
+        CHECK(output.find("# keep tail") != std::string::npos);
+        if (text.find("# first") != std::string::npos)
+            CHECK(output.find("# first ] is a comment") != std::string::npos);
+    }
+    for (const auto* columns : {"[1,,2]", "[,1]", "[1,1,]", "[0,]", "[5,]", "[1,\n", "[1 2]", "[1,] trailing"})
+        CHECK(!ParseConfig(std::string("[potion_routing.mana]\nbelt_columns=") + columns, reread, error));
 
     std::array<std::array<std::uint32_t, 5>, 12> rows{};
     for (std::uint32_t i = 0; i < rows.size(); ++i) {

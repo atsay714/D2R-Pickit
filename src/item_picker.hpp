@@ -101,7 +101,7 @@ inline void SetToggle(Config& config, std::size_t index, bool value) {
     else if (index == 13) config.teleportItems = value;
 }
 inline auto SameSettings(const Config& a, const Config& b) -> bool {
-    return SameSelection(a, b) && a.enabled == b.enabled && a.vanilla == b.vanilla && a.reimagined == b.reimagined
+    return a.potionRouting == b.potionRouting && SameSelection(a, b) && a.enabled == b.enabled && a.vanilla == b.vanilla && a.reimagined == b.reimagined
         && a.walkingEnabled == b.walkingEnabled && a.teleportEnabled == b.teleportEnabled && a.teleportGold == b.teleportGold
         && a.teleportItems == b.teleportItems && a.walkingRange == b.walkingRange && a.teleportRange == b.teleportRange;
 }
@@ -215,6 +215,13 @@ inline auto SaveSettings(std::string text, const Config& expected, const Config&
     if (current.teleportItems != draft.teleportItems) patch("teleport", "items", draft.teleportItems ? "true" : "false");
     if (current.walkingRange != draft.walkingRange) patch("walking", "pickup_range", std::to_string(draft.walkingRange));
     if (current.teleportRange != draft.teleportRange) patch("teleport", "pickup_range", std::to_string(draft.teleportRange));
+    if (current.potionRouting.enabled != draft.potionRouting.enabled)
+        patch("potion_routing", "enabled", draft.potionRouting.enabled ? "true" : "false");
+    for (std::size_t i=0;i<3;++i) {
+        const auto& before=current.potionRouting.families[i];const auto& after=draft.potionRouting.families[i];
+        if(before.columns!=after.columns || before.count!=after.count) PatchScalar(text,PotionRouting::Sections[i],"belt_columns",PotionRouting::ColumnsText(after),true);
+        if(before.inventoryFallback!=after.inventoryFallback) patch(PotionRouting::Sections[i],"inventory_fallback",after.inventoryFallback?"true":"false");
+    }
     Config verify;
     if (!ParseConfig(text, verify, error) || !SameSettings(verify, draft)) { error = "Could not preserve configuration while saving settings."; return false; }
     output = std::move(text); return true;

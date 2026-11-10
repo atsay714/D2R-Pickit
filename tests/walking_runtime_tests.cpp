@@ -11,6 +11,7 @@ struct Unit {
     int x{};
     bool blocked{}, accepts{true};
     Unit* next{};
+    std::uint32_t code{PackItemCode("r01")};
 } Player, Item, Other, Third;
 void* Rooms[]{&Room};
 std::vector<std::uint32_t> Requests, Ranges;
@@ -24,7 +25,7 @@ void* __fastcall Next(void* unit) { return static_cast<Unit*>(unit)->next; }
 std::uint32_t __fastcall Type(void* unit) { return static_cast<Unit*>(unit)->type; }
 std::uint32_t __fastcall Id(void* unit) { return static_cast<Unit*>(unit)->id; }
 std::uint32_t __fastcall Mode(void* unit) { return static_cast<Unit*>(unit)->mode; }
-std::uint32_t __fastcall Code(void*) { return PackItemCode("r01"); }
+std::uint32_t __fastcall Code(void* unit) { return static_cast<Unit*>(unit)->code; }
 std::int32_t __fastcall Distance(void* player, void* item) { return std::abs(static_cast<Unit*>(player)->x - static_cast<Unit*>(item)->x); }
 std::int32_t __fastcall Collision(void*, void* item, std::uint32_t) { return static_cast<Unit*>(item)->blocked ? 1 : 0; }
 void* __fastcall Find(void* game, std::uint32_t type, std::uint32_t id) {
@@ -135,6 +136,16 @@ int main() {
     Fresh(); Settings.validateOnly = true; ScheduleWalkingFollowUp(&Game, &Player); CHECK(Queued.empty());
     Fresh(); now = Start(); const auto stale = Queued.back(); StopRetryLifecycle();
     WalkingTickAt(&TestContext, stale, now + 100); CHECK(Requests.empty());
+    // Existing potion selections still use the native request with routing off.
+    Fresh(20); Item.x = 4; Item.code = PackItemCode("hp5"); Settings.vanilla[3] = true;
+    now = Start(); CHECK(Requests.size() == 1 && Requests.back() == Item.id);
+    // A refused custom route must not starve another selected item.
+    Fresh(20); Item.x = 4; Item.code = PackItemCode("hp5"); Settings.vanilla[3] = true;
+    Settings.potionRouting.enabled = true;
+    Other = {4, 11, 3, 5}; Item.next = &Other;
+    now = Start(); CHECK(Requests.size() == 1 && Requests.back() == Other.id);
+    config = SnapshotSettings(); config.potionRouting.enabled = false; ApplyItemSelection(config);
+    Tick(now + 100); CHECK(Requests.size() == 2 && Requests.back() == Item.id);
     ResetRuntime(); Context = nullptr;
     std::cout << "Walking updates, 1..20 boundaries, long paths, burst/refusal fairness, live radius, legacy ownership and lifecycle; failures: " << failures << '\n';
     return failures ? 1 : 0;

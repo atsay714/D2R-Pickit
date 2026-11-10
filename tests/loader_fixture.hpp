@@ -16,7 +16,7 @@ inline bool __cdecl Read(const D2RL::PluginContext*, char* out, std::uint32_t si
 }
 inline bool __cdecl Check(const D2RL::PluginContext*, std::uint64_t, const void*, std::uint32_t) noexcept { ++Checks; return Compatible; }
 inline bool __cdecl Patch(const D2RL::PluginContext*, std::uint64_t, const void*, std::uint32_t, std::uint64_t, std::uint32_t) noexcept { ++Patches; return true; }
-inline bool __cdecl Hook(const D2RL::PluginContext*, const D2RL::InlineHookRegistration*) noexcept { ++InlineHooks; return false; }
+inline bool __cdecl Hook(const D2RL::PluginContext*, const D2RL::InlineHookRegistration* hook) noexcept { ++InlineHooks; if(hook->rva != 0x3862D0)return false; if(hook->original)*hook->original=reinterpret_cast<void*>(1);return true; }
 inline bool __cdecl Command(const D2RL::PluginContext*, const D2RL::ConsoleCommandRegistration*) noexcept { return true; }
 inline D2RL::Threads::Result __cdecl Queue(const D2RL::PluginContext*, D2RL::Threads::Callback, void*) noexcept { return D2RL::Threads::Result::Success; }
 inline D2RL::Lifecycle::Result __cdecl Subscribe(const D2RL::PluginContext*, const D2RL::Lifecycle::GameplayEventListener*, D2RL::Lifecycle::ListenerHandle* handle) noexcept {

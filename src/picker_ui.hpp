@@ -108,7 +108,7 @@ private:
             window.Update(matches, draft, source, status, !SameSettings(original, draft), overridesOnly, delegated, interact.view, rebuild);
             return;
         }
-        const auto count = interactTab ? Reimagined::InteractSettings::ToggleLabels.size() + 3 : options ? ToggleLabels.size() + 2 : matches.size();
+        const auto count = interactTab ? Reimagined::InteractSettings::ToggleLabels.size() + 3 : options ? ToggleLabels.size() + 2 + 16 : matches.size();
         const auto pages = (std::max)(std::size_t{1}, (count + PageSize - 1) / PageSize);
         page = (std::min)(page, pages - 1);
         visible.fill(0);
@@ -135,6 +135,11 @@ private:
                 visible[i] = static_cast<std::uint32_t>(index + 1);
                 const bool locked = delegated && ((index >= 11 && index < ToggleLabels.size()) || index == ToggleLabels.size() + 1);
                 Enable("Choice" + suffix, !locked);
+                if(index>=ToggleLabels.size()+2) {
+                    const auto choice=index-ToggleLabels.size()-2;
+                    Enable("Choice"+suffix,true);
+                    Text("Item"+suffix,PotionRouting::Label(choice)+": "+(PotionRouting::ToggleValue(draft.potionRouting,choice)?"On":"Off"));continue;
+                }
                 const auto labelText = index < ToggleLabels.size() ? std::string(ToggleLabels[index]) + ": " + (ToggleValue(draft, index) ? "On" : "Off")
                     : std::string(index == ToggleLabels.size() ? "Pickup distance while moving: " : "Pickup distance after casting: ")
                         + std::to_string(index == ToggleLabels.size() ? draft.walkingRange : draft.teleportRange) + " (Change steps 1-20)";
@@ -231,6 +236,9 @@ private:
                 case WindowActionKind::InteractNumber:
                     if (event.value >= 0) self->interact.Number(event.code, static_cast<std::uint32_t>(event.value));
                     self->Render(); break;
+                case WindowActionKind::PotionToggle:
+                    PotionRouting::SetToggle(self->draft.potionRouting,event.code,event.value!=0);
+                    self->status="Unsaved potion routing changes";self->Render();break;
                 case WindowActionKind::Search: self->Render(); break;
                 case WindowActionKind::Filter: self->overridesOnly = !self->overridesOnly; self->Render(); break;
                 case WindowActionKind::Save: self->Save(); break;
@@ -434,6 +442,10 @@ private:
                     else if (index == ToggleLabels.size() || (index == ToggleLabels.size() + 1 && !self->delegated)) {
                         auto& radius = index == ToggleLabels.size() ? self->draft.walkingRange : self->draft.teleportRange;
                         radius = radius % 20 + 1;
+                    }
+                    else if(index>=ToggleLabels.size()+2 && index<ToggleLabels.size()+18) {
+                        const auto choice=index-ToggleLabels.size()-2;
+                        PotionRouting::SetToggle(self->draft.potionRouting,choice,!PotionRouting::ToggleValue(self->draft.potionRouting,choice));
                     }
                     self->status = "Unsaved changes"; self->Render(); return Action::Consume;
                 }

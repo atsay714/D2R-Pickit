@@ -273,6 +273,67 @@ accepted the merged 0.10.0 gameplay retest on Reimagined with D2RLoader
 1.3.1-beta / D2R build 93847. Controller navigation, TCP/IP live-config matching
 and other game/mod environments require separate qualification.
 
+### Potion belt routing
+
+Press **Ctrl+P > Potion routing** to opt into custom potion destinations.
+**Use custom potion routing** defaults off, including for existing configurations
+without these settings. With it off, potions retain normal native placement.
+Choose which potions to collect in General or Item picker as before; exclusions
+still win. Routing does not enable potion selection by itself.
+
+Each family (healing, mana, rejuvenation) has four belt-column checkboxes and an
+**Inventory overflow** option. Columns are numbered 1-4 from left to right;
+newly checked columns are appended to the displayed priority order. Existing
+columns of the same potion family are filled before starting a free allowed
+column, respecting the equipped belt's height.
+
+When custom routing is enabled:
+
+- Potions go to their family's allowed belt columns.
+- If those columns cannot accept them, overflow allows a normal inventory pickup.
+- With no columns and overflow enabled, that family goes directly to inventory.
+- With no available column and overflow disabled, the potion stays on the ground.
+- The native pickup still decides inventory capacity and acceptance; no item is
+  deleted, split, or forced into an occupied slot. Manual pickups stay native.
+
+**Apply & Save** persists and applies routing live, together with pending Pickit
+selection/general changes. Closing without saving discards the draft. Auto
+Interact remains an independent save. The native-panel fallback exposes routing
+under Options. Turning custom routing off retains the chosen columns and overflow
+preferences.
+
+```toml
+[potion_routing]
+enabled = true
+
+[potion_routing.health]
+belt_columns = [1, 2]
+inventory_fallback = true
+
+[potion_routing.mana]
+belt_columns = [3]
+inventory_fallback = true
+
+[potion_routing.rejuvenation]
+belt_columns = [4]
+inventory_fallback = false
+```
+
+Missing family settings default to no columns and no overflow. Columns must be
+unique integers from 1 through 4. The shipped config includes the routing keys
+in `[d2rl].match`; when upgrading an existing config, add those keys deliberately
+if loader configuration matching is needed. Existing metadata is preserved by
+the settings editor. TCP/IP routing/live-config matching remains unqualified.
+
+The routing adapter validates additional native belt/inventory fingerprints and
+installs one scoped belt-slot hook at startup, even with routing switched off,
+so the setting can be enabled live. Unknown or modified fingerprints reject
+activation. The hook delegates to native behavior outside a matching automatic
+potion request. An optional RuffnecKk Stack Manager V1 routing provider can plan
+whole-item destinations; an absent/inactive provider uses standalone routing,
+while an incompatible provider refuses custom potion routes. Stack Manager is
+not required or bundled.
+
 ## Pickup behavior
 
 Movement actions begin pickup checks that continue every 100 ms while walking

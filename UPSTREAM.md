@@ -102,3 +102,15 @@ normal consumption left to the native opener. D2MOO remains semantic research
 only; none of its code, addresses or 32-bit layouts is incorporated.
 See `inspection/auto-interact-native-research.md` and the accompanying contract
 manifest for capture provenance and historical qualification boundaries.
+
+## Potion routing contribution
+
+The potion adapter, V1 Stack Manager consumer interface and live routing controls
+were ported from RuffnecKk-D2RLoader-Suite `plugins/auto-pickup` at commit
+`0febd3e3b97ba7ddc364b7909c3b670cbb62754f` (MIT):
+https://github.com/RuffDood/RuffnecKk-D2RLoader-Suite/tree/0febd3e3b97ba7ddc364b7909c3b670cbb62754f/plugins/auto-pickup
+
+This port adds an explicit off-by-default routing switch to preserve Pickit's
+existing potion placement, retains upstream identity/defaults, and excludes
+Suite packaging and Maps compatibility changes. Copyright 2026 RuffnecKk;
+full MIT notice: `third_party/RuffnecKkNativeStats/LICENSE`.

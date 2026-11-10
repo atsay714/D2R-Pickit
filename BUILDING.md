@@ -133,3 +133,17 @@ build\migrate_interact_config.exe old-pickit.toml auto-interact.toml new-pickit.
 
 The helper refuses an existing output file. Review it before replacing the
 active config. Runtime first-launch migration uses the same tested function.
+
+## Potion routing validation
+
+The potion adapter test uses native-call doubles to check column priority,
+belt height, overflow, GUID scoping, manual-pickup delegation and exception
+cleanup. Activation fixtures reject each added belt/inventory fingerprint in
+turn. Picker tests cover routing opt-in, TOML round trips, invalid columns,
+concurrent edits, real Windows checkbox events and refreshes without rebuilding
+the item list. Walking fixtures preserve native potion pickup when routing is
+off and verify that refused potion routes do not block another selected item.
+
+These are offline checks. The upstream port still needs live gameplay, full
+inventory acceptance, save/reload and multiplayer qualification. The optional
+Stack Manager path needs separate active-provider gameplay coverage.
