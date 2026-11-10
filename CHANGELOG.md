@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.11.0 — 2026-11-10
+
+- Add optional potion belt routing and inventory overflow, contributed by
+  [RuffDood / RuffnecKk](https://github.com/RuffDood) in
+  [PR #3](https://github.com/atsay714/D2R-Pickit/pull/3).
+- Configure ordered belt columns and independent inventory overflow for healing,
+  mana and rejuvenation potions in Ctrl+P > Potion routing. Respect belt height
+  and fill existing same-family columns before starting an empty allowed column.
+- Keep custom routing off by default. Potion selection and Include/Exclude
+  rules still decide what is collected; manual pickups retain native placement.
+- Apply and save potion routing live alongside pending General/item selections.
+  Preserve routing preferences when disabled and expose native-panel controls.
+- Validate the additional native belt/inventory fingerprints and scope the
+  placement hook to matching automatic potion requests. Refused routes leave
+  potions on the ground and allow other selected items to be considered.
+- Preserve MIT contribution notices. Stack Manager remains optional and unbundled.
+- Offline fixtures cover routing, activation rejection, settings round trips,
+  checkbox controls and coexistence. Live gameplay, full-inventory acceptance,
+  save/reload, multiplayer and active Stack Manager qualification remain pending.
+
 ## 0.10.1 — 2026-10-26
 
 - Simplify settings labels, help and save messages. Explain disabled post-cast

@@ -8,7 +8,7 @@ DLL filename and config filename remain unchanged for existing installations.
 The standalone Teleport Auto Pickup plugin remains supported and available.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.10.1 Â· **License:** MIT Â· **Runtime:** D2RLoader / Windows x64
+**Version:** 0.11.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -58,7 +58,8 @@ ordinary chests, hidden/jungle stashes, hollow logs, baskets, jars, ordinary
 urns, crates, normal barrels, cocoons and bone/skull piles. Town/personal stashes,
 Evil Urns, exploding barrels and quest/event objects remain manual.
 
-**Apply & Save changes only the active tab's settings.** Both tabs save to
+**Apply & Save** saves pickup selection, General and Potion routing changes
+together. Auto Interact saves independently to the same
 `auto-pickup-anything.toml`; object settings live in `[auto_interact]`. The item
 pickup toggle and Auto Interact toggle are independent. Turning item pickup off
 keeps automatic opening available. Live changes apply if the opener was active
@@ -93,7 +94,7 @@ and explains removing it and restarting. Item pickup continues to work.
 ## Configuration
 
 ```toml
-# D2R Pickit 0.10.1 (stable config/ID: auto-pickup-anything)
+# D2R Pickit 0.11.0 (stable config/ID: auto-pickup-anything)
 # Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
 # Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true
