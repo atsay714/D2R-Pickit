@@ -7,6 +7,12 @@ on:
       - .github/workflows/antivirus-diagnostics.yml
       - tools/antivirus_diagnostics.py
   workflow_dispatch:
+    inputs:
+      round:
+        description: Diagnostic comparison round
+        type: choice
+        options: [all, components]
+        default: components
 
 permissions:
   contents: read
@@ -24,8 +30,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: Build and test all four controlled variants
-        run: python tools/antivirus_diagnostics.py --build
+      - name: Build controlled diagnostic variants
+        env:
+          DIAGNOSTIC_ROUND: ${{ inputs.round || 'components' }}
+        run: python tools/antivirus_diagnostics.py --build --variant "$env:DIAGNOSTIC_ROUND"
       - name: Retain diagnostic samples and source manifests
         if: always()
         uses: actions/upload-artifact@v7
