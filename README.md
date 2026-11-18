@@ -8,7 +8,7 @@ DLL filename and config filename remain unchanged for existing installations.
 The standalone Teleport Auto Pickup plugin remains supported and available.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.11.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
+**Version:** 0.12.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -94,7 +94,7 @@ and explains removing it and restarting. Item pickup continues to work.
 ## Configuration
 
 ```toml
-# D2R Pickit 0.11.0 (stable config/ID: auto-pickup-anything)
+# D2R Pickit 0.12.0 (stable config/ID: auto-pickup-anything)
 # Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
 # Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true
@@ -379,7 +379,8 @@ Checks respect collision and use the normal pickup entry, preserving the game's
 acceptance, stacking and placement rules. There is no inventory sweep.
 Both pickup radii support 1..9999. The plugin only searches the player's
 neighboring game rooms, so 9999 does not mean map-wide pickup. Collision and
-native acceptance still apply; extended radii need live-game qualification.
+native acceptance still apply. The maintainer reported successful gameplay
+testing of the expanded radius and rule import/export on 2026-11-18.
 Auto Interact retains its separate 0..20 limit. The legacy native settings
 panel cycles through radius presets up to 9999; the Windows window accepts
 any integer in the supported range.

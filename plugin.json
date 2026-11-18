@@ -1,9 +1,9 @@
 {
   "id": "auto-pickup-anything",
   "name": "D2R Pickit",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "author": "atsay714",
-  "homepage": "https://github.com/atsay714/d2rl-auto-pickup-anything",
+  "homepage": "https://github.com/atsay714/D2R-Pickit",
   "license": "MIT",
   "plugin_abi": 3,
   "role": "Shared",
