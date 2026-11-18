@@ -1,5 +1,6 @@
 #include "rules_files.hpp"
 #include <filesystem>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 using namespace RuffnecKk::AutoPickup::Picker;
@@ -14,7 +15,7 @@ int main() {
     fs::create_directory(root);
     const auto active = root / "active.toml", preset = root / fs::path(L"pickup-\u898f\u5247.toml");
     const std::string old = "# full active config\nenabled=false\n[item_codes]\ninclude=['jew']\n";
-    { std::ofstream file(active); file << old; }
+    { std::ofstream file(active, std::ios::binary); file << old; }
     std::string error, text = "unchanged"; fs::path backup;
     CHECK(WriteRulesFile(preset, "[item_codes]\ninclude=[]\n", active, error));
     CHECK(ReadRulesFile(preset, text, error) && text == "[item_codes]\ninclude=[]\n");

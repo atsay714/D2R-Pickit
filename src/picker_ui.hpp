@@ -457,7 +457,7 @@ private:
             else if (command == "Import" || command == "Export") {
                 if (!self->interactTab) {
                     const auto path = self->SearchText();
-                    const auto file = std::filesystem::u8path(path);
+                    const auto file = std::filesystem::path(std::u8string(path.begin(), path.end()));
                     std::error_code ec;
                     if (command == "Export" && std::filesystem::exists(file, ec)) {
                         self->status = "Export path exists. Choose a new path; the active config is never an export destination.";

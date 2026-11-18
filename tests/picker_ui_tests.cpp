@@ -2,6 +2,7 @@
 #include "../src/auto_interact/settings.hpp"
 #include "picker_ui.hpp"
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <vector>
 using namespace RuffnecKk::AutoPickup;

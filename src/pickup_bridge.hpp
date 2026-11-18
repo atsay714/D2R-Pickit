@@ -2,7 +2,8 @@
 #include <cstdint>
 #include <type_traits>
 
-// Independent consumer/provider copies must remain byte-identical.
+// Independent consumer/provider wire layouts must remain byte-identical.
+// Older providers/consumers may retain a smaller supported distance bound.
 // Calls are synchronous on the authoritative game thread only. The caller
 // holds a module reference for the entire call; no native pointer is retained.
 namespace Reimagined::PickupBridge {
