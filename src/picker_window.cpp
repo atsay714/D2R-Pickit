@@ -400,6 +400,7 @@ void Window::Hide() {
 auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
     switch (message) {
     case WM_CREATE: {
+        updating = true; // Edit controls can notify while their HWNDs are still being constructed.
         dpi = GetDpiForWindow(hwnd); if (!dpi) dpi = 96;
         font = CreateFontW(-MulDiv(11, static_cast<int>(dpi), 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
@@ -466,7 +467,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
             || std::any_of(toggles.begin(), toggles.end(), [](HWND child) { return !child; }) || !ranges[0] || !ranges[1]
             || !interactHelp || std::any_of(interactToggles.begin(), interactToggles.end(), [](HWND child) { return !child; })
             || std::any_of(interactNumbers.begin(), interactNumbers.end(), [](HWND child) { return !child; })) return -1;
-        EnableWindow(save, FALSE); Layout(); ShowTab(); return 0;
+        EnableWindow(save, FALSE); Layout(); ShowTab(); updating = false; return 0;
     }
     case ShowMessage: {
         if (!visible.load()) return 0; // A newer close supersedes this queued open.
@@ -482,6 +483,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         Repaint(); return 0;
     }
     case RefreshMessage: Refresh(); return 0;
+    case FlushMessage: SetEvent(reinterpret_cast<HANDLE>(wp)); return 0;
     case HideMessage: if (!visible.load()) Hide(); return 0; // A newer open supersedes an old hide.
     case StopMessage: DestroyWindow(hwnd); return 0;
     case WM_CLOSE: Hide(); Emit({WindowActionKind::Close}); return 0;

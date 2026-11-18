@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     CHECK(Last().kind == WindowActionKind::Range && Last().value == 21);
     window.Update({}, config, "ExampleMod", "Standalone owns post-cast pickup", false, false, true);
     CHECK(AwaitCount(list, 0));
-    CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 211)) && !IsWindowEnabled(GetDlgItem(hwnd, 221)));
+    CHECK(Await([&] { return !IsWindowEnabled(GetDlgItem(hwnd, 211)) && !IsWindowEnabled(GetDlgItem(hwnd, 221)); }));
     CHECK(IsWindowEnabled(GetDlgItem(hwnd, 210)) && IsWindowEnabled(GetDlgItem(hwnd, 220)));
     std::vector<Entry> seven;
     for (unsigned i = 1; i <= 7; ++i) seven.push_back({PackItemCode("k0" + std::to_string(i)), "Orb " + std::to_string(i), true});
@@ -260,8 +260,10 @@ int main(int argc, char** argv) {
     CloseDuringDialog = nullptr;
     SendMessageW(GetDlgItem(files, 202), BM_CLICK, 0, 0);
     CHECK(Last().kind == WindowActionKind::Toggle && Last().generation == 17);
-    PostMessageW(files, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"Dialog reopen complete"));
-    CHECK(Await([&] { wchar_t title[64]{}; GetWindowTextW(files, title, 64); return std::wstring_view(title) == L"Dialog reopen complete"; }));
+    const auto flushed = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    CHECK(flushed && PostMessageW(files, Window::FlushMessage, reinterpret_cast<WPARAM>(flushed), 0));
+    const auto acknowledged = WaitForSingleObject(flushed, 3000) == WAIT_OBJECT_0;
+    CHECK(acknowledged); if (acknowledged) CloseHandle(flushed);
     CHECK(window.IsOpen() && IsWindowVisible(files));
     window.Stop();
     std::cout << "Real themed Win32 picker: initial controls, native cursor handling, 6000 rows, scrolling, search, save and teardown; failures: " << failures << '\n';

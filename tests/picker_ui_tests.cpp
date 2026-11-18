@@ -116,15 +116,11 @@ void Send(const char* name) {
     const D2RL::SharedEvents::UiMessageEvent event{sizeof(event), 0, 0, 0, "AutoPickupPicker", name, nullptr};
     CHECK(messageListener.callback(ctx, &event, messageListener.userData) == D2RL::SharedEvents::UiMessageAction::Consume);
 }
-void FlushWindow(HWND window, const wchar_t* caption) {
-    PostMessageW(window, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(caption));
-    const auto deadline = GetTickCount64() + 3000;
-    while (GetTickCount64() < deadline) {
-        wchar_t text[80]{}; GetWindowTextW(window, text, 80);
-        if (std::wstring_view(text) == caption) return;
-        Sleep(1);
-    }
-    CHECK(false);
+void FlushWindow(HWND window) {
+    const auto event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    CHECK(event && PostMessageW(window, Window::FlushMessage, reinterpret_cast<WPARAM>(event), 0));
+    const auto acknowledged = WaitForSingleObject(event, 3000) == WAIT_OBJECT_0;
+    CHECK(acknowledged); if (acknowledged) CloseHandle(event);
 }
 }
 namespace S=Reimagined::InteractSettings;
@@ -240,13 +236,13 @@ int main() {
     queued.clear(); // Model loader cancellation before opening the overlay.
     command.callback(nullptr, nullptr, command.userData); Drain();
     const auto settings = FindWindowW(L"AutoPickupAnything.ItemPicker.v1", nullptr);
-    CHECK(settings); FlushWindow(settings, L"First draft ready");
+    CHECK(settings); FlushWindow(settings);
     const auto writesBeforeRace = writes, commitsBeforeRace = commits;
     command.callback(nullptr, nullptr, command.userData); // Delay this toggle on the loader UI queue.
     SetWindowTextW(GetDlgItem(settings, 220), L"9999"); // Old Range/Save/Close queued after the toggle.
     SendMessageW(settings, WM_COMMAND, MAKEWPARAM(104, BN_CLICKED), 0);
     SendMessageW(settings, WM_CLOSE, 0, 0);
-    Drain(); FlushWindow(settings, L"Reopened draft ready");
+    Drain(); FlushWindow(settings);
     CHECK(IsWindowVisible(settings) && writes == writesBeforeRace && commits == commitsBeforeRace);
     wchar_t radius[16]{}; GetWindowTextW(GetDlgItem(settings, 220), radius, 16);
     CHECK(std::wstring_view(radius) == std::to_wstring(live.walkingRange));

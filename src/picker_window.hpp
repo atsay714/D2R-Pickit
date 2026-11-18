@@ -19,6 +19,8 @@ struct WindowRow { std::uint32_t code{}; std::wstring name, codeText, policy; Ch
 // handed back to the loader's UI thread by the action callback.
 class Window {
 public:
+    // Queue barrier: wParam is an event handle retained until SetEvent acknowledges it.
+    static constexpr UINT FlushMessage = WM_APP + 75;
     using Handler = void(*)(void*, WindowAction) noexcept;
     using FileDialogFn = bool(*)(HWND, bool, std::wstring&, std::string&);
     auto Start(Handler callback, void* data, FileDialogFn dialog = nullptr) noexcept -> bool;
