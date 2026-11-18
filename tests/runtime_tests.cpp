@@ -112,7 +112,7 @@ int main() {
     ExpectedDistance = 8;
     CHECK(ExternalRangeScan(&Player, 8)); CHECK(Requests.size() == 16 && Requests.back() == 52);
     CHECK(ExternalRangeScan(&Player, 8)); CHECK(Requests.size() == 16); // V2 cannot bypass it either.
-    CHECK(!ExternalRangeScan(&Player, 0) && !ExternalRangeScan(&Player, 21));
+    CHECK(!ExternalRangeScan(&Player, 0) && !ExternalRangeScan(&Player, 10000));
     ExpectedDistance = 4;
     FreshItem(53, PackItemCode("r04"), 8); Scan(&Player); CHECK(Requests.size() == 16);
     Item.distance = 4; Scan(&Player); CHECK(Requests.size() == 17); // Movement radius unchanged.
@@ -172,6 +172,10 @@ int main() {
     ranges.walkingEnabled = false; ApplyItemSelection(ranges); FreshItem(94, PackItemCode("jew"), 1);
     CHECK(HookTrigger(nullptr, &Player, &opcode, 1) == 17 && Requests.size() == 25);
     CHECK(ExternalRangeScan(&Player, 9) && Requests.size() == 26);
+    ResetItemRetries(); FreshItem(95, PackItemCode("jew"), 9999); ExpectedDistance = 9999;
+    CHECK(ExternalRangeScan(&Player, 9999) && Requests.size() == 27);
+    FreshItem(96, PackItemCode("jew"), 10000);
+    CHECK(ExternalRangeScan(&Player, 9999) && Requests.size() == 27);
     ResetRuntime();
     CHECK(!ScanApiReady && ItemRetries.Ready({1, 60, PackItemCode("r01")}, 6002));
     std::cout << "Native selection and placement, failed/no-progress/exception retries, other-item fairness, walking/V1/V2 shared state, session/player isolation; failures: " << failures << '\n';

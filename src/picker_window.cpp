@@ -1,6 +1,7 @@
 #include "picker_window.hpp"
 #include <CommCtrl.h>
 #include <windowsx.h>
+#include <commdlg.h>
 #include <array>
 #include <climits>
 
@@ -9,6 +10,7 @@ namespace {
 constexpr auto ClassName = L"AutoPickupAnything.ItemPicker.v1";
 constexpr UINT ShowMessage = WM_APP + 71, RefreshMessage = WM_APP + 72, HideMessage = WM_APP + 73, StopMessage = WM_APP + 74;
 constexpr int SearchId = 101, ListId = 102, SaveId = 104, FilterId = 105, CloseId = 106, PickId = 108, LeaveId = 109, ResetId = 110;
+constexpr int ImportId = 111, ExportId = 112;
 auto Wide(std::string_view value) -> std::wstring {
     if (value.empty() || value.size() > INT_MAX) return {};
     const auto length = MultiByteToWideChar(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0);
@@ -39,8 +41,9 @@ BOOL CALLBACK FindGame(HWND hwnd, LPARAM data) {
     return TRUE;
 }
 }
-auto Window::Start(Handler callback, void* data) noexcept -> bool {
+auto Window::Start(Handler callback, void* data, FileDialogFn dialog) noexcept -> bool {
     stopping.store(false);
+    selectFile = dialog;
     handler.store(callback); userData = data;
     ready = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!ready) return false;
@@ -52,6 +55,7 @@ auto Window::Start(Handler callback, void* data) noexcept -> bool {
 void Window::Stop() noexcept {
     stopping.store(true);
     handler.store(nullptr);
+    if (const auto dialog = fileDialog.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
     if (const auto hwnd = window.load()) PostMessageW(hwnd, StopMessage, 0, 0);
     if (thread) { WaitForSingleObject(thread, INFINITE); CloseHandle(thread); thread = nullptr; }
     if (ready) { CloseHandle(ready); ready = nullptr; }
@@ -74,7 +78,7 @@ auto Window::SearchText() const -> std::string {
     std::lock_guard lock(mutex); return query;
 }
 void Window::Update(const std::vector<Entry>& entries, const Config& config, const std::string& source,
-        const std::string& status, bool dirty, bool filtered, bool delegated, const Reimagined::InteractSettings::View& interact, bool updateItems) {
+        const std::string& status, bool dirty, bool filtered, bool delegated, const Reimagined::InteractSettings::View& interact, bool updateItems, std::uint64_t generation) {
     std::vector<WindowRow> next;
     if (updateItems) next.reserve(entries.size());
     if (updateItems) for (const auto& item : entries) {
@@ -90,11 +94,46 @@ void Window::Update(const std::vector<Entry>& entries, const Config& config, con
         pendingSource = Wide(source); pendingStatus = Wide(status);
         pendingDirty = dirty; pendingFiltered = filtered; pendingDelegated = delegated;
         pendingInteract = interact;
+        pendingGeneration = generation;
     }
     if (const auto hwnd = window.load()) PostMessageW(hwnd, RefreshMessage, 0, 0);
 }
 void Window::Emit(WindowAction action) noexcept {
     if (const auto callback = handler.load()) callback(userData, std::move(action));
+}
+UINT_PTR CALLBACK Window::FileDialogHook(HWND hwnd, UINT message, WPARAM, LPARAM lp) noexcept {
+    if (message == WM_INITDIALOG) {
+        const auto* info = reinterpret_cast<const OPENFILENAMEW*>(lp);
+        auto* self = reinterpret_cast<Window*>(info->lCustData);
+        const auto dialog = GetParent(hwnd);
+        self->fileDialog.store(dialog);
+        if (self->stopping.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
+    }
+    return 0;
+}
+void Window::TransferRules(bool exporting) {
+    WindowAction event{exporting ? WindowActionKind::ExportRules : WindowActionKind::ImportRules};
+    event.generation = activeGeneration;
+    bool selected{};
+    if (selectFile) selected = selectFile(window.load(), exporting, event.path, event.message);
+    else {
+        std::array<wchar_t, 32768> path{};
+        if (exporting) lstrcpyW(path.data(), L"Pickit-rules.toml");
+        OPENFILENAMEW info{}; info.lStructSize = sizeof(info); info.hwndOwner = window.load();
+        info.lpstrFilter = L"Pickit rules / TOML config (*.toml)\0*.toml\0All files (*.*)\0*.*\0\0";
+        info.lpstrFile = path.data(); info.nMaxFile = static_cast<DWORD>(path.size());
+        info.lpstrDefExt = L"toml"; info.lpstrTitle = exporting ? L"Export pickup rules" : L"Import pickup rules";
+        info.Flags = OFN_EXPLORER | OFN_ENABLEHOOK | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_DONTADDTORECENT
+            | (exporting ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+        info.lpfnHook = FileDialogHook; info.lCustData = reinterpret_cast<LPARAM>(this);
+        selected = (exporting ? GetSaveFileNameW(&info) : GetOpenFileNameW(&info)) != FALSE;
+        fileDialog.store(nullptr);
+        if (selected) event.path = path.data();
+        else if (CommDlgExtendedError()) event.message = "Could not open the rules file picker. Nothing was changed.";
+    }
+    if (stopping.load()) return;
+    if (selected) Emit(std::move(event));
+    else if (!event.message.empty()) { event.kind = WindowActionKind::FileError; Emit(std::move(event)); }
 }
 DWORD WINAPI Window::ThreadMain(void* data) noexcept { return static_cast<Window*>(data)->Run(); }
 auto Window::Run() noexcept -> DWORD {
@@ -168,6 +207,8 @@ void Window::Layout() {
     MoveWindow(list, margin, px(204), width, (std::max)(px(100), static_cast<int>(r.bottom) - px(343)), TRUE);
     MoveWindow(save, r.right - margin - px(265), r.bottom - px(126), px(155), px(32), TRUE);
     MoveWindow(close, r.right - margin - px(100), r.bottom - px(126), px(100), px(32), TRUE);
+    MoveWindow(importRules, margin, r.bottom - px(126), px(120), px(32), TRUE);
+    MoveWindow(exportRules, margin + px(130), r.bottom - px(126), px(120), px(32), TRUE);
     MoveWindow(statusLabel, margin, r.bottom - px(79), width, px(62), TRUE);
     for (std::size_t i = 0; i < toggles.size(); ++i)
         MoveWindow(toggles[i], margin + px(16) + static_cast<int>(i / 7) * width / 2,
@@ -175,7 +216,7 @@ void Window::Layout() {
     for (int i = 0; i < 2; ++i) {
         const auto x = margin + px(16) + i * width / 2;
         MoveWindow(rangeLabels[i], x, px(290), width / 2 - px(24), px(24), TRUE);
-        MoveWindow(ranges[i], x, px(318), px(100), px(200), TRUE);
+        MoveWindow(ranges[i], x, px(318), px(100), px(28), TRUE);
     }
     MoveWindow(potionToggles[15],margin+px(16),px(87),width-px(32),px(26),TRUE);
     for(std::size_t family=0;family<3;++family) {
@@ -254,6 +295,7 @@ void Window::Refresh() {
         sourceText = pendingSource; statusText = pendingStatus;
         dirty = pendingDirty; filtered = pendingFiltered; config = pendingConfig; delegated = pendingDelegated;
         activeInteract = pendingInteract;
+        activeGeneration = pendingGeneration;
     }
     updating = true;
     for (std::size_t i = 0; i < toggles.size(); ++i) {
@@ -266,8 +308,13 @@ void Window::Refresh() {
         const auto title=std::string(PotionRouting::FamilyNames[i])+" - column priority "+PotionRouting::ColumnsText(config.potionRouting.families[i]);
         SetWindowTextW(potionLabels[i],Wide(title).c_str());
     }
-    SendMessageW(ranges[0], CB_SETCURSEL, config.walkingRange - 1, 0);
-    SendMessageW(ranges[1], CB_SETCURSEL, config.teleportRange - 1, 0);
+    for (std::size_t i = 0; i < ranges.size(); ++i) {
+        // UI-thread refreshes must not replace a value the user is still typing.
+        if (GetFocus() != ranges[i]) {
+            SetWindowTextW(ranges[i], std::to_wstring(i ? config.teleportRange : config.walkingRange).c_str());
+            invalidRanges[i] = false;
+        }
+    }
     EnableWindow(ranges[1], !delegated);
     for (std::size_t i = 0; i < interactToggles.size(); ++i) {
         SendMessageW(interactToggles[i], BM_SETCHECK, activeInteract.values.flags & (1U << i) ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -288,7 +335,7 @@ void Window::Refresh() {
         : L"Auto Interact settings are unavailable. Check the Pickit log.");
     SetWindowTextW(ownership, delegated
         ? L"Post-cast distance and options are disabled because an older Teleport Auto Pickup is installed. Update it to version 0.3.5 or later, or uninstall it, then restart the game."
-        : L"Item rules take priority over category settings.");
+        : L"Pickup distance: 1-9999 native units. Only neighboring game rooms are searched; walls still block pickup. Item rules take priority over category settings.");
     if (changedRows) {
         ListView_SetItemCountEx(list, static_cast<int>(rows.size()), LVSICF_NOSCROLL);
         ListView_SetItemState(list, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
@@ -318,16 +365,20 @@ void Window::ShowTab() {
     for (auto hwnd : rangeLabels) ShowWindow(hwnd, general ? SW_SHOW : SW_HIDE);
     for (auto hwnd : ranges) ShowWindow(hwnd, general ? SW_SHOW : SW_HIDE);
     ShowWindow(ownership, general ? SW_SHOW : SW_HIDE);
+    ShowWindow(importRules, items ? SW_SHOW : SW_HIDE);
+    ShowWindow(exportRules, items ? SW_SHOW : SW_HIDE);
     for (auto hwnd : {search, list, countLabel, filter, pickResults, leaveResults, resetResults}) ShowWindow(hwnd, items ? SW_SHOW : SW_HIDE);
     for (auto child : interactToggles) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     for (auto child : interactLabels) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     for (auto child : interactNumbers) ShowWindow(child, interact ? SW_SHOW : SW_HIDE);
     ShowWindow(interactHelp, interact ? SW_SHOW : SW_HIDE);
     SetWindowTextW(sourceLabel, potions ? L"Potion routing" : interact ? L"Auto Interact" : currentSource.c_str());
-    SetWindowTextW(statusLabel, interact ? Wide(activeInteract.status).c_str()
+    const bool invalid = invalidRanges[0] || invalidRanges[1];
+    SetWindowTextW(statusLabel, !interact && invalid ? L"Pickup distance must be a whole number from 1 to 9999."
+        : interact ? Wide(activeInteract.status).c_str()
         : items && currentStatus.empty() ? L"Check items to pick them up. Uncheck items to leave them. The buttons below affect all search results."
         : currentStatus.c_str());
-    EnableWindow(save, interact ? activeInteract.available && activeInteract.dirty : pickitDirty);
+    EnableWindow(save, interact ? activeInteract.available && activeInteract.dirty : pickitDirty && !invalid);
     Repaint();
 }
 void Window::Hide() {
@@ -376,9 +427,8 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         rangeLabels[0] = control(L"STATIC", L"Pickup distance while moving", 0, 0);
         rangeLabels[1] = control(L"STATIC", L"Pickup distance after casting", 0, 0);
         for (int i = 0; i < 2; ++i) {
-            ranges[i] = control(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, 220 + i);
-            for (int radius = 1; radius <= 20; ++radius)
-                SendMessageW(ranges[i], CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(std::to_wstring(radius).c_str()));
+            ranges[i] = control(L"EDIT", L"4", WS_TABSTOP | WS_BORDER | ES_NUMBER | ES_AUTOHSCROLL, 220 + i);
+            SendMessageW(ranges[i], EM_SETLIMITTEXT, 10, 0);
         }
         ownership = control(L"STATIC", L"", 0, 0);
         sourceLabel = control(L"STATIC", L"Reading loaded game item definitions...", 0, 0);
@@ -388,6 +438,8 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         pickResults = control(L"BUTTON", L"Pick up results", WS_TABSTOP | BS_PUSHBUTTON, PickId);
         leaveResults = control(L"BUTTON", L"Leave results", WS_TABSTOP | BS_PUSHBUTTON, LeaveId);
         resetResults = control(L"BUTTON", L"Use category defaults", WS_TABSTOP | BS_PUSHBUTTON, ResetId);
+        importRules = control(L"BUTTON", L"Import rules...", WS_TABSTOP | BS_PUSHBUTTON, ImportId);
+        exportRules = control(L"BUTTON", L"Export rules...", WS_TABSTOP | BS_PUSHBUTTON, ExportId);
         countLabel = control(L"STATIC", L"", 0, 0);
         list = control(WC_LISTVIEWW, L"", WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_OWNERDATA | LVS_SINGLESEL | LVS_SHOWSELALWAYS, ListId);
         ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_CHECKBOXES);
@@ -398,7 +450,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         save = control(L"BUTTON", L"Apply && Save", WS_TABSTOP | BS_PUSHBUTTON, SaveId);
         close = control(L"BUTTON", L"Close", WS_TABSTOP | BS_PUSHBUTTON, CloseId);
         statusLabel = control(L"STATIC", L"", 0, 0);
-        if (!sourceLabel || !search || !filter || !countLabel || !list || !pickResults || !leaveResults || !resetResults || !save || !close || !statusLabel || !tabs || !ownership
+        if (!sourceLabel || !search || !filter || !countLabel || !list || !pickResults || !leaveResults || !resetResults || !importRules || !exportRules || !save || !close || !statusLabel || !tabs || !ownership
             || std::any_of(toggles.begin(), toggles.end(), [](HWND child) { return !child; }) || !ranges[0] || !ranges[1]
             || !interactHelp || std::any_of(interactToggles.begin(), interactToggles.end(), [](HWND child) { return !child; })
             || std::any_of(interactNumbers.begin(), interactNumbers.end(), [](HWND child) { return !child; })) return -1;
@@ -474,6 +526,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
             return 0;
         }
         if (HIWORD(wp) == BN_CLICKED) {
+            if (LOWORD(wp) == ImportId || LOWORD(wp) == ExportId) { TransferRules(LOWORD(wp) == ExportId); return 0; }
             if (LOWORD(wp) == PickId) { Bulk(Choice::Include); return 0; }
             if (LOWORD(wp) == LeaveId) { Bulk(Choice::Exclude); return 0; }
             if (LOWORD(wp) == ResetId) { Bulk(Choice::Default); return 0; }
@@ -482,10 +535,15 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
             const auto index = static_cast<std::uint32_t>(LOWORD(wp) - 200);
             Emit({WindowActionKind::Toggle, index, {}, SendMessageW(toggles[index], BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0}); return 0;
         }
-        if ((LOWORD(wp) == 220 || LOWORD(wp) == 221) && HIWORD(wp) == CBN_SELCHANGE && !updating) {
+        if ((LOWORD(wp) == 220 || LOWORD(wp) == 221) && HIWORD(wp) == EN_CHANGE && !updating) {
             const auto index = static_cast<std::uint32_t>(LOWORD(wp) - 220);
-            const auto value = SendMessageW(ranges[index], CB_GETCURSEL, 0, 0);
-            if (value >= 0 && value < 20) Emit({WindowActionKind::Range, index, {}, static_cast<int>(value + 1)});
+            std::array<wchar_t, 32> text{}; GetWindowTextW(ranges[index], text.data(), static_cast<int>(text.size()));
+            const auto input = Utf8(text.data()); std::uint32_t value{};
+            const auto [last, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+            invalidRanges[index] = ec != std::errc{} || last != input.data() + input.size() || value < 1
+                || value > Reimagined::PickupBridge::MaximumPickupDistance;
+            ShowTab();
+            if (!invalidRanges[index]) Emit({WindowActionKind::Range, index, {}, static_cast<int>(value)});
             return 0;
         }
         if (LOWORD(wp) == SearchId && HIWORD(wp) == EN_CHANGE && !updating) {

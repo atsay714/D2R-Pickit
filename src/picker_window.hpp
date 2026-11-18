@@ -7,9 +7,12 @@
 #include <memory>
 
 namespace RuffnecKk::AutoPickup::Picker {
-enum class WindowActionKind { Search, Filter, Choice, Save, Close, Toggle, Range, BulkChoice, Tab, InteractToggle, InteractNumber, PotionToggle };
+enum class WindowActionKind { Search, Filter, Choice, Save, Close, Toggle, Range, BulkChoice, Tab, InteractToggle, InteractNumber, PotionToggle, ImportRules, ExportRules, FileError };
 struct WindowAction { WindowActionKind kind{}; std::uint32_t code{}; Choice choice{}; int value{};
     std::shared_ptr<const std::vector<std::uint32_t>> targets;
+    std::wstring path{};
+    std::string message{};
+    std::uint64_t generation{};
 };
 struct WindowRow { std::uint32_t code{}; std::wstring name, codeText, policy; Choice choice{}; bool checked{}; };
 // Independent Win32 settings window. Its message thread owns every HWND; SDK/config work is
@@ -17,7 +20,8 @@ struct WindowRow { std::uint32_t code{}; std::wstring name, codeText, policy; Ch
 class Window {
 public:
     using Handler = void(*)(void*, WindowAction) noexcept;
-    auto Start(Handler callback, void* data) noexcept -> bool;
+    using FileDialogFn = bool(*)(HWND, bool, std::wstring&, std::string&);
+    auto Start(Handler callback, void* data, FileDialogFn dialog = nullptr) noexcept -> bool;
     void Stop() noexcept;
     auto Open() noexcept -> bool;
     void Close() noexcept;
@@ -25,7 +29,7 @@ public:
     auto SearchText() const -> std::string;
     void Update(const std::vector<Entry>& entries, const Config& config, const std::string& source,
         const std::string& status, bool dirty, bool filtered, bool delegated = false,
-        const Reimagined::InteractSettings::View& interact = {}, bool updateItems = true);
+        const Reimagined::InteractSettings::View& interact = {}, bool updateItems = true, std::uint64_t generation = 0);
     auto Handle() const noexcept -> HWND { return window.load(); }
 private:
     static DWORD WINAPI ThreadMain(void* data) noexcept;
@@ -41,14 +45,19 @@ private:
     void Hide();
     void ShowTab();
     void Repaint();
+    void TransferRules(bool exporting);
+    static UINT_PTR CALLBACK FileDialogHook(HWND hwnd, UINT message, WPARAM, LPARAM lp) noexcept;
     auto CursorFor(HWND target, int hit) const noexcept -> HCURSOR;
     HANDLE thread{}, ready{};
     std::atomic<HWND> window{};
     std::atomic<bool> visible{}, stopping{};
+    std::atomic<HWND> fileDialog{};
+    FileDialogFn selectFile{};
     std::atomic<Handler> handler{};
     void* userData{};
     HWND gameWindow{}, search{}, list{}, sourceLabel{}, countLabel{}, statusLabel{}, save{}, filter{}, close{};
     HWND pickResults{}, leaveResults{}, resetResults{};
+    HWND importRules{}, exportRules{};
     HWND tabs{}, ownership{};
     std::array<HWND, ToggleLabels.size()> toggles{};
     std::array<HWND, 2> rangeLabels{}, ranges{};
@@ -61,6 +70,8 @@ private:
     Reimagined::InteractSettings::View pendingInteract, activeInteract;
     std::wstring currentSource, currentStatus;
     bool pickitDirty{};
+    std::array<bool, 2> invalidRanges{};
+    std::uint64_t pendingGeneration{}, activeGeneration{};
     HFONT font{};
     UINT dpi{96};
     mutable std::mutex mutex;

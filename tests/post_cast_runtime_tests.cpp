@@ -191,6 +191,13 @@ int main() {
     saved.enabled = true; Apply(saved); ScheduleFollowUp(&World, &Player);
     CHECK(FollowUps.IsCurrent(static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(QueueToken))));
     NativeStats.Reset(); GetInventoryGoldLimit = nullptr;
+    Settings.enabled = true; Settings.gold = true; Settings.pickupRange = 9999;
+    Settings.includeItemPlugin = true; CarriedGold = 0; Gold.distance = 9999; ResetGoldRetries();
+    const auto beforeExtended = PickupCalls;
+    Scan(&Player);
+    CHECK(PickupCalls == beforeExtended + 1 && ItemRange == 9999);
+    Gold.distance = 10000; ResetGoldRetries(); Scan(&Player);
+    CHECK(PickupCalls == beforeExtended + 1);
     Context = nullptr;
     std::cout << "Actual scheduler/collector, full/over-cap wallets, refused/zero-progress retries, changing pile IDs, spending/cap changes, item bridge and session/player isolation; failures: " << failures << '\n';
     return failures ? 1 : 0;

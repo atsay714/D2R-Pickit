@@ -3,6 +3,7 @@
 #include "picker_layout.hpp"
 #include "picker_catalog.hpp"
 #include "picker_window.hpp"
+#include "rules_files.hpp"
 #include <array>
 #include <deque>
 #include <mutex>
@@ -54,6 +55,8 @@ private:
     std::mutex actionsMutex;
     std::deque<WindowAction> actions;
     bool actionsQueued{};
+    bool importedRules{};
+    std::uint64_t draftGeneration{};
     template<class Service> auto Query(D2RL::ServiceId id, std::uint32_t version, const Service** out) -> bool {
         return context->QueryService(id, version, out) == D2RL::ServiceQueryResult::Success;
     }
@@ -105,7 +108,7 @@ private:
             renderedConfig = draft; renderedQuery = query; renderedFiltered = overridesOnly; rowsReady = true;
         }
         if (windowMode) {
-            window.Update(matches, draft, source, status, !SameSettings(original, draft), overridesOnly, delegated, interact.view, rebuild);
+            window.Update(matches, draft, source, status, !SameSettings(original, draft), overridesOnly, delegated, interact.view, rebuild, draftGeneration);
             return;
         }
         const auto count = interactTab ? Reimagined::InteractSettings::ToggleLabels.size() + 3 : options ? ToggleLabels.size() + 2 + 16 : matches.size();
@@ -142,7 +145,7 @@ private:
                 }
                 const auto labelText = index < ToggleLabels.size() ? std::string(ToggleLabels[index]) + ": " + (ToggleValue(draft, index) ? "On" : "Off")
                     : std::string(index == ToggleLabels.size() ? "Pickup distance while moving: " : "Pickup distance after casting: ")
-                        + std::to_string(index == ToggleLabels.size() ? draft.walkingRange : draft.teleportRange) + " (Change steps 1-20)";
+                        + std::to_string(index == ToggleLabels.size() ? draft.walkingRange : draft.teleportRange) + " (Change presets up to 9999)";
                 Text("Item" + suffix, labelText + (locked ? " (Disabled)" : ""));
                 continue;
             }
@@ -163,13 +166,14 @@ private:
             : "Change cycles Default / Include / Exclude. Codes select every quality; exclusions win.") : status);
         Enable("Previous", page > 0); Enable("Next", page + 1 < pages);
         Enable("Save", interactTab ? interact.view.available && interact.view.dirty : !SameSettings(original, draft));
+        Enable("Import", !interactTab); Enable("Export", !interactTab);
     }
     void BeginDraft() {
         original = snapshot();
         std::array<char, 65'536> text{}; std::uint32_t needed{}; std::string error; Config disk;
         if (context->ReadConfig(text.data(), static_cast<std::uint32_t>(text.size()), &needed)
             && ParseConfig(text.data(), disk, error)) original = std::move(disk);
-        draft = original; page = 0; status.clear(); editing = true;
+        draft = original; page = 0; status.clear(); editing = true; importedRules = false; ++draftGeneration;
         interact.Open();
     }
     void Open() {
@@ -188,7 +192,8 @@ private:
         bool bound = Bind("Search", WidgetEvent::InputChanged, "Search") && Bind("Filter", WidgetEvent::Click, "Filter")
             && Bind("Previous", WidgetEvent::Click, "Previous") && Bind("Next", WidgetEvent::Click, "Next")
             && Bind("Save", WidgetEvent::Click, "Save") && Bind("Close", WidgetEvent::Click, "Close")
-            && Bind("Options", WidgetEvent::Click, "Options");
+            && Bind("Options", WidgetEvent::Click, "Options")
+            && Bind("Import", WidgetEvent::Click, "Import") && Bind("Export", WidgetEvent::Click, "Export");
         for (std::size_t i = 0; i < PageSize; ++i) {
             const auto name = "Choice" + std::to_string(i);
             bound = Bind(name, WidgetEvent::Click, name.c_str()) && bound;
@@ -200,7 +205,7 @@ private:
         Render();
     }
     void Close() {
-        editing = false;
+        editing = false; importedRules = false;
         if (windowMode) window.Close();
         else if (panel) panels->closePanel(context, panel);
     }
@@ -230,7 +235,12 @@ private:
             for (const auto& event : pending) {
                 if (event.kind == WindowActionKind::Close) { self->Close(); continue; }
                 if (!self->editing || !self->IsOpen()) continue;
+                if ((event.kind == WindowActionKind::ImportRules || event.kind == WindowActionKind::ExportRules || event.kind == WindowActionKind::FileError)
+                    && event.generation != self->draftGeneration) continue;
                 switch (event.kind) {
+                case WindowActionKind::ImportRules: self->TransferRules(false, event.path); break;
+                case WindowActionKind::ExportRules: self->TransferRules(true, event.path); break;
+                case WindowActionKind::FileError: self->status = event.message; self->Render(); break;
                 case WindowActionKind::Tab: self->interactTab = event.code == 2; self->Render(); break;
                 case WindowActionKind::InteractToggle: self->interact.Toggle(event.code, event.value != 0); self->Render(); break;
                 case WindowActionKind::InteractNumber:
@@ -248,7 +258,7 @@ private:
                     }
                     break;
                 case WindowActionKind::Range:
-                    if (event.code <= 1 && event.value >= 1 && event.value <= 20 && (!self->delegated || event.code == 0)) {
+                    if (event.code <= 1 && event.value >= 1 && static_cast<std::uint32_t>(event.value) <= Reimagined::PickupBridge::MaximumPickupDistance && (!self->delegated || event.code == 0)) {
                         (event.code ? self->draft.teleportRange : self->draft.walkingRange) = static_cast<std::uint32_t>(event.value);
                         self->status = "Unsaved changes"; self->Render();
                     }
@@ -277,6 +287,25 @@ private:
             }
         } catch (...) {}
     }
+    void TransferRules(bool exporting, const std::filesystem::path& path) {
+        if (path.empty()) { status = "Enter a TOML file path in Search, then choose Import or Export."; Render(); return; }
+        std::string error;
+        if (exporting) {
+            const auto text = ExportRules(draft, context->activeMod ? context->activeMod : "");
+            if (WriteRulesFile(path, text, context->pluginConfigPath ? context->pluginConfigPath : L"", error))
+                status = "Exported the displayed pickup rules. Other settings are not included.";
+            else status = error;
+        } else {
+            std::string text; Config next; RulesImportReport report;
+            if (!ReadRulesFile(path, text, error) || !ImportRules(text, draft, next, report, error)) status = error;
+            else {
+                draft = std::move(next); importedRules = true; page = 0;
+                status = "Imported " + std::to_string(report.fields) + " rule fields; " + std::to_string(report.ignored)
+                    + " unrelated entries skipped. Review, then Apply & Save.";
+            }
+        }
+        Render();
+    }
     void Save() {
         if (interactTab) { interact.Save(); Render(); return; }
         std::array<char, 65'536> text{}; std::uint32_t needed{};
@@ -291,14 +320,24 @@ private:
         if (updated.size() >= text.size()) { status = "Item lists exceed the config size limit. Nothing was applied."; Render(); return; }
         Config applied;
         if (!ParseConfig(updated, applied, error)) { status = error; Render(); return; }
+        if (importedRules) {
+            std::filesystem::path backup;
+            if (!BackupRulesConfig(context->pluginConfigPath ? context->pluginConfigPath : L"", text.data(), backup, error)) {
+                status = error; Render(); return;
+            }
+            const auto path = backup.u8string();
+            context->LogInfo(("D2R Pickit: pre-import config backup: " + std::string(path.begin(), path.end())).c_str());
+        }
         // Save before publishing the scan policy. A refused write
         // leaves both gameplay and the previous config unchanged.
         if (!context->WriteConfig(updated.c_str())) { status = "Loader refused the config write. Nothing was applied."; Render(); return; }
         commit(std::move(applied)); original = draft;
+        const bool backedUp = importedRules; importedRules = false;
         const auto runtime = snapshot();
         status = !runtime.enabled ? "Saved. Item pickup is off."
             : runtime.validateOnly ? "Saved. Validation mode is active; pickups remain disabled."
             : "Saved.";
+        if (backedUp) status += " Previous config backed up next to the active TOML.";
         Render();
     }
     auto NameFor(std::uint32_t code) const -> std::string {
@@ -415,6 +454,17 @@ private:
             const std::string_view command(event->command);
             if (command == "Close") { self->panels->closePanel(self->context, self->panel); self->editing = false; }
             else if (command == "Save") self->Save();
+            else if (command == "Import" || command == "Export") {
+                if (!self->interactTab) {
+                    const auto path = self->SearchText();
+                    const auto file = std::filesystem::u8path(path);
+                    std::error_code ec;
+                    if (command == "Export" && std::filesystem::exists(file, ec)) {
+                        self->status = "Export path exists. Choose a new path; the active config is never an export destination.";
+                        self->Render();
+                    } else self->TransferRules(command == "Export", file);
+                }
+            }
             else if (command == "Search") { self->page = 0; self->Render(); }
             else if (command == "Filter") { self->overridesOnly = !self->overridesOnly; self->page = 0; self->Render(); }
             else if (command == "Options") {
@@ -441,7 +491,9 @@ private:
                     if (index < ToggleLabels.size() && (!self->delegated || index < 11)) SetToggle(self->draft, index, !ToggleValue(self->draft, index));
                     else if (index == ToggleLabels.size() || (index == ToggleLabels.size() + 1 && !self->delegated)) {
                         auto& radius = index == ToggleLabels.size() ? self->draft.walkingRange : self->draft.teleportRange;
-                        radius = radius % 20 + 1;
+                        constexpr std::array<std::uint32_t, 22> presets{1,2,3,4,5,6,8,10,12,16,20,30,40,50,75,100,250,500,1000,2500,5000,9999};
+                        const auto next = std::upper_bound(presets.begin(), presets.end(), radius);
+                        radius = next == presets.end() ? presets.front() : *next;
                     }
                     else if(index>=ToggleLabels.size()+2 && index<ToggleLabels.size()+18) {
                         const auto choice=index-ToggleLabels.size()-2;

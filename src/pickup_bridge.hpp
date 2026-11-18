@@ -8,7 +8,7 @@
 namespace Reimagined::PickupBridge {
 inline constexpr std::uint32_t Version = 1;
 inline constexpr std::uint32_t RangeVersion = 2;
-inline constexpr std::uint32_t MaximumPickupDistance = 20;
+inline constexpr std::uint32_t MaximumPickupDistance = 9999;
 inline constexpr char ExportName[] = "AutoPickupAnythingGetScanApi";
 using ScanFn = bool(__cdecl*)(void* player) noexcept;
 struct ApiV1 {

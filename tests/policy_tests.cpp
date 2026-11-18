@@ -18,7 +18,9 @@ int main(int argc, char** argv) {
     CHECK(c.walkingRange == 4 && c.teleportRange == 4 && c.walkingEnabled && c.teleportEnabled && c.teleportGold && c.teleportItems);
     CHECK(ParseConfig("[walking]\nenabled=false\npickup_range=20\n[teleport]\npickup_range=1\ngold=false\nitems=false\n", c, error));
     CHECK(!c.walkingEnabled && c.walkingRange == 20 && c.teleportRange == 1 && !c.teleportGold && !c.teleportItems);
-    for (const auto bad : {"[walking]\npickup_range=0", "[walking]\npickup_range=21", "[teleport]\npickup_range=3.5", "[teleport]\ninterval_ms=49", "[teleport]\nwindow_ms=500\ninterval_ms=1000"})
+    CHECK(ParseConfig("[walking]\npickup_range=9999\n[teleport]\npickup_range=21\n", c, error));
+    CHECK(c.walkingRange == 9999 && c.teleportRange == 21);
+    for (const auto bad : {"[walking]\npickup_range=0", "[walking]\npickup_range=10000", "[teleport]\npickup_range=10000", "[teleport]\npickup_range=3.5", "[teleport]\ninterval_ms=49", "[teleport]\nwindow_ms=500\ninterval_ms=1000"})
         CHECK(!ParseConfig(bad, c, error));
     CHECK(ParseConfig(text, c, error));
     CHECK(VanillaGroups.size() == 6 && ReimaginedGroups.size() == 3);

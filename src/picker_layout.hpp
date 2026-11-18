@@ -15,7 +15,7 @@ inline auto PanelLayout() -> std::string {
     };
     label("Title", 40, 50, "D2R Pickit");
     label("Source", 90, 45, "Reading loaded item tables...");
-    json += R"({"type":"InputTextBoxWidget","name":"Search","fields":{"rect":{"x":110,"y":145,"width":740,"height":45},"maxStringLength":80,"canInsertNewlines":false,"backgroundColor":"$FontColorTransparent","fontType":"12ptF","fontStyle":{"fontFace":"BlizzardGlobal","fontColor":"$FontColorWhite","pointSize":"$SmallFontSize"},"hint":{"text":"Search item name or code","style":"$StyleModalDialogDescription"}}},)";
+    json += R"({"type":"InputTextBoxWidget","name":"Search","fields":{"rect":{"x":110,"y":145,"width":740,"height":45},"maxStringLength":480,"canInsertNewlines":false,"backgroundColor":"$FontColorTransparent","fontType":"12ptF","fontStyle":{"fontFace":"BlizzardGlobal","fontColor":"$FontColorWhite","pointSize":"$SmallFontSize"},"hint":{"text":"Search items, or enter a TOML path for Import / Export","style":"$StyleModalDialogDescription"}}},)";
     button("Filter", 910, 135, "All / Custom rules");
     button("Options", 910, 40, "Options / Items");
     // Eight reusable rows keep both the native widget count and panel height
@@ -28,8 +28,10 @@ inline auto PanelLayout() -> std::string {
     label("Page", 720, 40, "");
     button("Next", 910, 660, "Next");
     label("Status", 765, 55, "Default follows category switches. Exclude always wins.");
-    button("Save", 270, 830, "Apply & Save");
-    button("Close", 660, 830, "Close");
+    button("Import", 110, 830, "Import rules");
+    button("Export", 390, 830, "Export rules");
+    button("Save", 670, 830, "Apply & Save");
+    button("Close", 950, 830, "Close");
     json.pop_back();
     return json + "]}]}";
 }

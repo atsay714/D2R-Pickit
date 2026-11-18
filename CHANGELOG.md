@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Import/export portable pickup rules from Ctrl+P > Item picker. Restore category
+  switches and Include/Exclude lists from exports or old full TOML configs while
+  skipping unrelated/retired fields and retaining missing destination values.
+- Stage imported rules for review and Apply & Save; back up the current full
+  config first. Preserve unrelated settings, comments and loader metadata.
+- Accept walking and built-in post-cast pickup distances 1..9999, default 4,
+  using numeric fields. Keep neighboring-room discovery, collision and native
+  acceptance; 9999 does not promise map-wide pickup. Auto Interact stays 0..20.
+- Cover schema evolution, file/backup failures, numeric controls and extended
+  native-call propagation with offline tests. Extended-distance gameplay remains
+  separately qualified.
+
 ## 0.11.0 — 2026-11-10
 
 - Add optional potion belt routing and inventory overflow, contributed by

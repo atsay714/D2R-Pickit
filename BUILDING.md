@@ -89,9 +89,15 @@ For a different build or output directory, pass `--build-dir` or `--output-dir`.
 ## Release maintenance
 
 The walking runtime fixture covers a single movement command followed by
-position changes on game updates, radius boundaries 1–20, long paths, refusal
+position changes on game updates, radius boundaries through 9999, long paths, refusal
 cooldowns, live edits, legacy Teleport ownership, and stale-session callbacks.
 It models native pickup acceptance; it does not replace live-game testing.
+
+Portable rule tests cover full configs and exports across schema changes,
+missing/unknown fields, TOML syntax and invalid/oversized input. File tests cover
+Unicode paths, exclusive backups, active-config alias protection and atomic
+exports. UI fixtures cover import staging, conflict/backup/write failures and
+draft exports. toml++ is vendored with its license; no download is needed to build.
 
 Keep `plugin.json`, the CMake project version, `PluginInfo::version`, Windows
 VERSIONINFO, config heading and changelog in sync. Keep the plugin ID stable:
