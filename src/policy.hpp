@@ -2,6 +2,7 @@
 #include "catalog.hpp"
 #include "potion_routing/policy.hpp"
 #include "auto_interact/policy.hpp"
+#include "pickup_bridge.hpp"
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -165,7 +166,7 @@ inline auto ParseConfig(std::string_view input, Config& output, std::string& err
                 std::uint32_t number{};
                 const auto [last, ec] = std::from_chars(value.data(), value.data() + value.size(), number);
                 if (value.empty() || ec != std::errc{} || last != value.data() + value.size()) return fail("expected integer");
-                if (k == 1 && (number < 1 || number > 20)) return fail("pickup_range must be 1..20");
+                if (k == 1 && (number < 1 || number > Reimagined::PickupBridge::MaximumPickupDistance)) return fail("pickup_range must be 1..9999");
                 if (k == 4 && (number < 50 || number > 1000)) return fail("interval_ms must be 50..1000");
                 if (k == 5 && (number < 500 || number > 5000)) return fail("window_ms must be 500..5000");
                 (walking ? parsed.walkingRange : k == 1 ? parsed.teleportRange : k == 4 ? parsed.intervalMs : parsed.windowMs) = number;

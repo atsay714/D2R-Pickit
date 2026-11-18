@@ -2,6 +2,7 @@
 #include "../src/auto_interact/settings.hpp"
 #include "picker_ui.hpp"
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <vector>
 using namespace RuffnecKk::AutoPickup;
@@ -115,6 +116,12 @@ void Send(const char* name) {
     const D2RL::SharedEvents::UiMessageEvent event{sizeof(event), 0, 0, 0, "AutoPickupPicker", name, nullptr};
     CHECK(messageListener.callback(ctx, &event, messageListener.userData) == D2RL::SharedEvents::UiMessageAction::Consume);
 }
+void FlushWindow(HWND window) {
+    const auto event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    CHECK(event && PostMessageW(window, Window::FlushMessage, reinterpret_cast<WPARAM>(event), 0));
+    const auto acknowledged = WaitForSingleObject(event, 3000) == WAIT_OBJECT_0;
+    CHECK(acknowledged); if (acknowledged) CloseHandle(event);
+}
 }
 namespace S=Reimagined::InteractSettings;
 auto ReadInteract(S::Values* out) noexcept -> S::Result { Config c;std::string error;if(!ParseConfig(LoaderFixture::ConfigText,c,error))return S::Result::Unavailable;*out=AutoInteract::ValuesFor(c.interact);return S::Result::Success; }
@@ -170,6 +177,50 @@ int main() {
     Send("Choice2"); Send("Save");
     CHECK(writes == 4 && commits == 2 && !live.enabled); // same TOML, only the Auto Interact section saved
     CHECK(labels[ids["Status"]].find("Saved Auto Interact") != std::string::npos);
+    // Native fallback uses a TOML path in Search. All frontends share transfer/save code.
+    const auto folder = std::filesystem::temp_directory_path() / ("pickit-ui-" + std::to_string(GetTickCount64()));
+    std::filesystem::create_directory(folder);
+    const auto active = folder / "active.toml", source = folder / "old-config.toml", exported = folder / "exported.toml";
+    const auto activePath = active.wstring(); LoaderFixture::Context.pluginConfigPath = activePath.c_str();
+    { std::ofstream file(active); file << LoaderFixture::ConfigText; }
+    { std::ofstream file(source); file << "retired_option=1\n[vanilla]\nrunes=true\n[item_codes]\ninclude=['zz99']\nexclude=[]\n[future]\nvalues=[{a=2}]\n"; }
+    Send("Options"); // Auto Interact -> Items.
+    search = source.string(); Send("Import");
+    CHECK(labels[ids["Status"]].find("Imported") != std::string::npos && commits == 2 && writes == 4);
+    CHECK(enabled[ids["Save"]]);
+    const auto expectedBeforeImport = LoaderFixture::ConfigText;
+    auto backups = [&] { std::vector<std::filesystem::path> found; for (const auto& file : std::filesystem::directory_iterator(folder))
+        if (file.path().filename().string().find("before-import") != std::string::npos) found.push_back(file.path()); return found; };
+    const auto missing = (folder / "missing" / "active.toml").wstring(); LoaderFixture::Context.pluginConfigPath = missing.c_str();
+    Send("Save"); CHECK(writes == 4 && commits == 2 && backups().empty());
+    LoaderFixture::Context.pluginConfigPath = activePath.c_str();
+    failWrite = true; Send("Save"); CHECK(writes == 5 && commits == 2 && backups().size() == 1);
+    std::ifstream before(backups().front()); const std::string backupText{std::istreambuf_iterator<char>(before), {}};
+    CHECK(backupText == expectedBeforeImport); before.close();
+    failWrite = false; Send("Save"); CHECK(writes == 6 && commits == 3 && backups().size() == 2);
+    CHECK(live.includeCodes == std::vector{PackItemCode("zz99")} && live.vanilla[1] && !live.enabled);
+    CHECK(labels[ids["Status"]].find("backed up") != std::string::npos);
+    // Export the current draft without applying it.
+    search = "zz99"; Send("Search"); Send("Choice0");
+    search = exported.string(); Send("Export"); CHECK(writes == 6 && commits == 3);
+    Config roundTrip; RulesImportReport report; std::string text, why;
+    CHECK(ReadRulesFile(exported, text, why) && ImportRules(text, {}, roundTrip, report, why));
+    CHECK(roundTrip.includeCodes.empty() && roundTrip.excludeCodes == std::vector{PackItemCode("zz99")});
+    search = active.string(); Send("Export");
+    CHECK(labels[ids["Status"]].find("active config") != std::string::npos);
+    // Closing discards imported drafts. A stale external edit refuses saving before any backup.
+    search = source.string(); Send("Import"); Send("Close");
+    command.callback(nullptr, nullptr, command.userData); Drain(); CHECK(!enabled[ids["Save"]]);
+    Send("Import"); LoaderFixture::ConfigText += "\n[reimagined]\ngems=false\n";
+    Send("Save"); CHECK(writes == 6 && commits == 3 && backups().size() == 2);
+    CHECK(labels[ids["Status"]].find("outside") != std::string::npos);
+    const auto unicodePath = std::filesystem::path(L"\\\\?\\" + folder.wstring()) / (std::wstring(175, L'\u898f') + L".toml");
+    { std::ofstream file(unicodePath, std::ios::binary); CHECK(file); file << "[item_codes]\ninclude=[]\n"; }
+    const auto unicodeText = unicodePath.u8string(); search.assign(unicodeText.begin(), unicodeText.end());
+    CHECK(search.size() > 512); Send("Import");
+    CHECK(labels[ids["Status"]].find("Imported") != std::string::npos);
+    std::filesystem::remove_all(folder);
+    LoaderFixture::Context.pluginConfigPath = nullptr;
     picker.Stop(); CHECK(!open && unregistered == 4);
     failPanel = true;
     CHECK(picker.Start(ctx, Snapshot, Commit, false, true, &interactApi)); CHECK(unregistered == 5); // resource cleanup, then Win32 fallback
@@ -182,7 +233,19 @@ int main() {
     CHECK(std::string_view(binding.displayName) == "Auto Pickup Settings");
     const D2RL::Input::ActionEvent pressed{sizeof(D2RL::Input::ActionEvent), 0, 50, D2RL::Input::ActionEventKind::Pressed, 0, binding.defaultPrimary};
     CHECK(binding.callback(ctx, &pressed, binding.userData) == D2RL::Input::ActionResult::Handled && queued.size() == 1);
-    queued.clear(); // Model loader cancellation on unload without displaying the test overlay.
+    queued.clear(); // Model loader cancellation before opening the overlay.
+    command.callback(nullptr, nullptr, command.userData); Drain();
+    const auto settings = FindWindowW(L"AutoPickupAnything.ItemPicker.v1", nullptr);
+    CHECK(settings); FlushWindow(settings);
+    const auto writesBeforeRace = writes, commitsBeforeRace = commits;
+    command.callback(nullptr, nullptr, command.userData); // Delay this toggle on the loader UI queue.
+    SetWindowTextW(GetDlgItem(settings, 220), L"9999"); // Old Range/Save/Close queued after the toggle.
+    SendMessageW(settings, WM_COMMAND, MAKEWPARAM(104, BN_CLICKED), 0);
+    SendMessageW(settings, WM_CLOSE, 0, 0);
+    Drain(); FlushWindow(settings);
+    CHECK(IsWindowVisible(settings) && writes == writesBeforeRace && commits == commitsBeforeRace);
+    wchar_t radius[16]{}; GetWindowTextW(GetDlgItem(settings, 220), radius, 16);
+    CHECK(std::wstring_view(radius) == std::to_wstring(live.walkingRange));
     picker.Stop(); CHECK(removedActions == 3);
     widgets.base.serviceSize = sizeof(widgets); failBind = true;
     CHECK(picker.Start(ctx, Snapshot, Commit, false, true, &interactApi)); command.callback(nullptr, nullptr, command.userData); Drain(); CHECK(!open);

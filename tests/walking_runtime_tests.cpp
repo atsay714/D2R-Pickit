@@ -91,6 +91,11 @@ int main() {
         CHECK(Requests.size() == 1 && Ranges.back() == radius);
         Fresh(radius); Item.x = static_cast<int>(radius) + 1; Start(); CHECK(Requests.empty());
     }
+    for (const auto radius : {21U, 50U, 9999U}) {
+        Fresh(radius); Item.x = static_cast<int>(radius); Start();
+        CHECK(Requests.size() == 1 && Ranges.back() == radius);
+        Fresh(radius); Item.x = static_cast<int>(radius + 1); Start(); CHECK(Requests.empty());
+    }
 
     // Long paths keep their follow-up window alive, with one queued callback.
     Fresh(); now = Start();
@@ -147,6 +152,6 @@ int main() {
     config = SnapshotSettings(); config.potionRouting.enabled = false; ApplyItemSelection(config);
     Tick(now + 100); CHECK(Requests.size() == 2 && Requests.back() == Item.id);
     ResetRuntime(); Context = nullptr;
-    std::cout << "Walking updates, 1..20 boundaries, long paths, burst/refusal fairness, live radius, legacy ownership and lifecycle; failures: " << failures << '\n';
+    std::cout << "Walking updates, extended boundaries through 9999, long paths, burst/refusal fairness, live radius, legacy ownership and lifecycle; failures: " << failures << '\n';
     return failures ? 1 : 0;
 }

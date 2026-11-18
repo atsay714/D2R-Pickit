@@ -2,6 +2,11 @@
 
 Current project author and maintainer: [atsay714](https://github.com/atsay714).
 
+Portable pickup-rule imports use unmodified toml++ 3.4.0 at commit
+`30172438cee64926dc41fdd9c11fb3ba5b2ba9de` (MIT, Mark Gillard).
+`third_party/tomlplusplus/UPSTREAM.md` records its source and file hashes;
+the full license is included in installation packages.
+
 Native function signatures, pickup calls, action-table hooks, and parts of the
 compatibility and selection infrastructure were adapted from RuffnecKk Auto
 Pickup 2.0.0 and Potion Auto Pickup in RuffnecKk-D2RLoader-Suite.

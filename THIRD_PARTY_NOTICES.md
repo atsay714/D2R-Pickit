@@ -7,6 +7,7 @@ Project author and maintainer: [atsay714](https://github.com/atsay714).
 | Adapted RuffnecKk Auto Pickup / Potion Auto Pickup code and SDK build adapter | 2026 RuffnecKk and contributors | MIT | Original copyright and permission text retained in LICENSE |
 | D2RLoader PluginSDK | 2026 D2RLoader contributors | MIT | third_party/PluginSDK/LICENSE; included as a plugin-prefixed dependency license in binary ZIPs |
 | RuffnecKk native stat compatibility adapter | 2026 RuffnecKk and contributors | MIT | third_party/RuffnecKkNativeStats/LICENSE; included as a plugin-prefixed dependency license in binary ZIPs |
+| toml++ 3.4.0 | Mark Gillard | MIT | third_party/tomlplusplus/LICENSE and UPSTREAM.md; included as a plugin-prefixed dependency license in binary ZIPs |
 
 | RuffnecKk MapSense paired object-interaction contract validator | 2026 RuffnecKk and contributors | MIT | third_party/RuffnecKkObjectContract/LICENSE and SOURCE.json; included as a plugin-prefixed dependency license |
 

@@ -36,7 +36,7 @@ def install_support_files(plugin_id):
     # Give every leaf filename an owner: some importers flatten ZIP directories.
     files = {f'{plugin_id}.{name}': (ROOT / name).read_bytes() for name in
              ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md', 'CHANGELOG.md')}
-    for dependency in ('PluginSDK', 'RuffnecKkNativeStats', 'RuffnecKkObjectContract'):
+    for dependency in ('PluginSDK', 'RuffnecKkNativeStats', 'RuffnecKkObjectContract', 'tomlplusplus'):
         license_path = ROOT / 'third_party' / dependency / 'LICENSE'
         if license_path.exists():
             files[f'{plugin_id}.{dependency}.LICENSE.txt'] = license_path.read_bytes()

@@ -8,7 +8,7 @@ DLL filename and config filename remain unchanged for existing installations.
 The standalone Teleport Auto Pickup plugin remains supported and available.
 
 **Author and maintainer:** [atsay714](https://github.com/atsay714)  
-**Version:** 0.11.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
+**Version:** 0.12.0 · **License:** MIT · **Runtime:** D2RLoader / Windows x64
 
 ## Installation
 
@@ -94,7 +94,7 @@ and explains removing it and restarting. Item pickup continues to work.
 ## Configuration
 
 ```toml
-# D2R Pickit 0.11.0 (stable config/ID: auto-pickup-anything)
+# D2R Pickit 0.12.0 (stable config/ID: auto-pickup-anything)
 # Ctrl+P opens the optional item picker. Apply & Save updates pickup settings live.
 # Restart after manual file edits or changing validate_only. Master off retains your preferences.
 enabled = true
@@ -103,7 +103,7 @@ validate_only = false
 
 [walking]
 enabled = true
-# Native distance units, not yards (1..20; default 4).
+# Native distance units, not yards (1..9999; default 4).
 pickup_range = 4
 
 [teleport]
@@ -227,8 +227,8 @@ and pointer movement does not wait for a software cursor repaint. Radius
 controls repaint on open without requiring hover.
 
 The **General** tab has a master switch, all nine category checkboxes,
-walking/post-cast switches, post-cast gold/items switches and two radius dropdowns
-(1-20, default 4; native distance units, not yards). The newer native panel exposes
+walking/post-cast switches, post-cast gold/items switches and two radius number fields
+(1-9999, default 4; native distance units, not yards). The newer native panel exposes
 these through **Options / Items** and paged Change buttons.
 
 **Apply & Save** writes these settings and the include/exclude lists to the
@@ -273,6 +273,38 @@ Tests exercise real hidden Windows controls and loader fixtures. The user
 accepted the merged 0.10.0 gameplay retest on Reimagined with D2RLoader
 1.3.1-beta / D2R build 93847. Controller navigation, TCP/IP live-config matching
 and other game/mod environments require separate qualification.
+
+### Import and export pickup rules
+
+In **Ctrl+P > Item picker**, choose **Export rules...** to save the displayed
+category switches and Include/Exclude lists to a TOML file outside the mod
+installation. Unsaved rule changes are included in the export. Exporting does
+not apply or save those changes to the active config.
+
+Choose **Import rules...** to restore a portable export or an old full
+`auto-pickup-anything.toml`. Review the imported selections, then **Apply & Save**.
+Closing without saving discards the import. Other settings, including pickup
+radii, potion routing and Auto Interact, retain their current values.
+
+Imports transfer recognized rule fields into the current config rather than
+replacing it. Added, unrelated or retired fields are skipped. Missing rule fields
+retain the current draft value; an explicit empty Include/Exclude array clears
+that list. Invalid recognized values, malformed TOML and files larger than
+65535 bytes refuse the whole import without changing the draft. Codes missing
+from the loaded item tables are retained as unavailable; different mods may use
+the same code for different items, so review rules when changing mods.
+
+Before applying imported rules, Pickit saves a full copy of the current active
+TOML beside it as `auto-pickup-anything.toml.before-import-<unique-id>.toml`.
+A failed backup or config write leaves the previous gameplay policy active.
+Keep an export outside the mod directory before reinstalling. Imports retain
+new destination settings and loader metadata, so copying old config text into
+a new version is unnecessary. Existing missing settings already use defaults;
+an update adding a setting does not itself require replacing the entire TOML.
+
+The older native-panel fallback uses a TOML file path entered in **Search**
+with its **Import rules** / **Export rules** buttons. For fallback exports,
+choose a new file path. The Windows settings window uses normal file pickers.
 
 ### Potion belt routing
 
@@ -345,6 +377,13 @@ grace period. Player IDs are resolved on each authoritative game update, and
 session changes, disabling walking/the master switch, or unload cancel old work.
 Checks respect collision and use the normal pickup entry, preserving the game's
 acceptance, stacking and placement rules. There is no inventory sweep.
+Both pickup radii support 1..9999. The plugin only searches the player's
+neighboring game rooms, so 9999 does not mean map-wide pickup. Collision and
+native acceptance still apply. The maintainer reported successful gameplay
+testing of the expanded radius and rule import/export on 2026-11-18.
+Auto Interact retains its separate 0..20 limit. The legacy native settings
+panel cycles through radius presets up to 9999; the Windows window accepts
+any integer in the supported range.
 Walking radius applies to selected items; the game's own walking gold collector
 is unchanged. Post-cast gold has its separate radius.
 This is a separate collector; exact vanilla auto-gold selection parity is

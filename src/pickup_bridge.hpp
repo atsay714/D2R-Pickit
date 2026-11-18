@@ -2,13 +2,14 @@
 #include <cstdint>
 #include <type_traits>
 
-// Independent consumer/provider copies must remain byte-identical.
+// Independent consumer/provider wire layouts must remain byte-identical.
+// Older providers/consumers may retain a smaller supported distance bound.
 // Calls are synchronous on the authoritative game thread only. The caller
 // holds a module reference for the entire call; no native pointer is retained.
 namespace Reimagined::PickupBridge {
 inline constexpr std::uint32_t Version = 1;
 inline constexpr std::uint32_t RangeVersion = 2;
-inline constexpr std::uint32_t MaximumPickupDistance = 20;
+inline constexpr std::uint32_t MaximumPickupDistance = 9999;
 inline constexpr char ExportName[] = "AutoPickupAnythingGetScanApi";
 using ScanFn = bool(__cdecl*)(void* player) noexcept;
 struct ApiV1 {

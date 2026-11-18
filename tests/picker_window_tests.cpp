@@ -11,6 +11,12 @@ int failures{};
 #define CHECK(x) do { if (!(x)) { std::cerr << "Failed line " << __LINE__ << ": " #x "\n"; ++failures; } } while (false)
 std::mutex eventMutex;
 std::vector<WindowAction> events;
+bool DialogSelected{true}, DialogExport{};
+Window* CloseDuringDialog{};
+bool SelectRules(HWND, bool exporting, std::wstring& path, std::string&) {
+    if (CloseDuringDialog) { CloseDuringDialog->Close(); CloseDuringDialog->Open(); }
+    DialogExport = exporting; path = L"C:\\backup\\\u898f\u5247.toml"; return DialogSelected;
+}
 void Event(void*, WindowAction value) noexcept {
     std::lock_guard lock(eventMutex); events.push_back(value);
 }
@@ -112,8 +118,7 @@ int main(int argc, char** argv) {
     window.Update(entries, config, "ExampleMod", "Select an item", false, false);
     CHECK(AwaitCount(list, 6000));
     CHECK(AwaitText(hwnd, L"Select an item")); // Async refresh finished its text updates.
-    CHECK(SendMessageW(GetDlgItem(hwnd, 220), CB_GETCOUNT, 0, 0) == 20);
-    CHECK(SendMessageW(GetDlgItem(hwnd, 220), CB_GETCURSEL, 0, 0) == 3);
+    CHECK(GetWindowLongPtrW(GetDlgItem(hwnd, 220), GWL_STYLE) & ES_NUMBER);
     CheckInitialControls(hwnd); CheckCursor(hwnd);
     // A status/tab-only update must retain the displayed catalog and scroll.
     CHECK(SendMessageW(list, LVM_ENSUREVISIBLE, 5999, FALSE));
@@ -164,12 +169,21 @@ int main(int argc, char** argv) {
     CHECK(Last().kind == WindowActionKind::Filter);
     SendMessageW(GetDlgItem(hwnd, 202), BM_CLICK, 0, 0);
     CHECK(Last().kind == WindowActionKind::Toggle && Last().code == 2 && Last().value == 0);
-    SendMessageW(GetDlgItem(hwnd, 220), CB_SETCURSEL, 8, 0);
-    SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(220, CBN_SELCHANGE), reinterpret_cast<LPARAM>(GetDlgItem(hwnd, 220)));
-    CHECK(Last().kind == WindowActionKind::Range && Last().code == 0 && Last().value == 9);
+    SetWindowTextW(GetDlgItem(hwnd, 220), L"9999");
+    CHECK(Last().kind == WindowActionKind::Range && Last().code == 0 && Last().value == 9999);
+    SetWindowTextW(GetDlgItem(hwnd, 220), L"10000");
+    CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 104))); // Invalid text cannot save a stale radius.
+    window.Update({}, config, "Invalid radius refresh", "Another setting changed", true, false);
+    CHECK(AwaitText(hwnd, L"Invalid radius refresh"));
+    wchar_t invalidText[32]{}; GetWindowTextW(GetDlgItem(hwnd, 220), invalidText, 32);
+    CHECK(std::wstring_view(invalidText) == L"10000" && !IsWindowEnabled(GetDlgItem(hwnd, 104)));
+    SetWindowTextW(GetDlgItem(hwnd, 220), L"0");
+    CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 104)));
+    SetWindowTextW(GetDlgItem(hwnd, 220), L"21");
+    CHECK(Last().kind == WindowActionKind::Range && Last().value == 21);
     window.Update({}, config, "ExampleMod", "Standalone owns post-cast pickup", false, false, true);
     CHECK(AwaitCount(list, 0));
-    CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 211)) && !IsWindowEnabled(GetDlgItem(hwnd, 221)));
+    CHECK(Await([&] { return !IsWindowEnabled(GetDlgItem(hwnd, 211)) && !IsWindowEnabled(GetDlgItem(hwnd, 221)); }));
     CHECK(IsWindowEnabled(GetDlgItem(hwnd, 210)) && IsWindowEnabled(GetDlgItem(hwnd, 220)));
     std::vector<Entry> seven;
     for (unsigned i = 1; i <= 7; ++i) seven.push_back({PackItemCode("k0" + std::to_string(i)), "Orb " + std::to_string(i), true});
@@ -229,6 +243,29 @@ int main(int argc, char** argv) {
         && !IsWindowEnabled(GetDlgItem(hwnd, 320)) && !IsWindowEnabled(GetDlgItem(hwnd, 104)); }));
     window.Stop(); CHECK(!window.Handle() && !IsWindow(hwnd));
     CHECK(window.Start(Event, nullptr)); window.Stop(); // Reload creates a fresh message thread and controls.
+    CHECK(window.Start(Event, nullptr, SelectRules));
+    const auto files = window.Handle();
+    window.Update({}, config, "ExampleMod", "File actions", false, false, false, {}, true, 17);
+    CHECK(AwaitText(files, L"File actions"));
+    SendMessageW(files, WM_COMMAND, MAKEWPARAM(111, BN_CLICKED), 0);
+    CHECK(Last().kind == WindowActionKind::ImportRules && Last().path == L"C:\\backup\\\u898f\u5247.toml" && Last().generation == 17 && !DialogExport);
+    SendMessageW(files, WM_COMMAND, MAKEWPARAM(112, BN_CLICKED), 0);
+    CHECK(Last().kind == WindowActionKind::ExportRules && DialogExport);
+    DialogSelected = false;
+    SendMessageW(files, WM_COMMAND, MAKEWPARAM(111, BN_CLICKED), 0);
+    CHECK(Last().kind == WindowActionKind::ExportRules); // Cancellation emits no import.
+    DialogSelected = true; CloseDuringDialog = &window;
+    SendMessageW(files, WM_COMMAND, MAKEWPARAM(111, BN_CLICKED), 0);
+    CHECK(Last().kind == WindowActionKind::ExportRules); // Close/reopen invalidates a pending dialog.
+    CloseDuringDialog = nullptr;
+    SendMessageW(GetDlgItem(files, 202), BM_CLICK, 0, 0);
+    CHECK(Last().kind == WindowActionKind::Toggle && Last().generation == 17);
+    const auto flushed = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    CHECK(flushed && PostMessageW(files, Window::FlushMessage, reinterpret_cast<WPARAM>(flushed), 0));
+    const auto acknowledged = WaitForSingleObject(flushed, 3000) == WAIT_OBJECT_0;
+    CHECK(acknowledged); if (acknowledged) CloseHandle(flushed);
+    CHECK(window.IsOpen() && IsWindowVisible(files));
+    window.Stop();
     std::cout << "Real themed Win32 picker: initial controls, native cursor handling, 6000 rows, scrolling, search, save and teardown; failures: " << failures << '\n';
     return failures ? 1 : 0;
 }
