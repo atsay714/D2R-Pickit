@@ -46,12 +46,15 @@ private:
     void ShowTab();
     void Repaint();
     void TransferRules(bool exporting);
+    void CancelFileDialog() noexcept;
+    struct DialogState { Window* owner{}; std::uint64_t epoch{}; };
     static UINT_PTR CALLBACK FileDialogHook(HWND hwnd, UINT message, WPARAM, LPARAM lp) noexcept;
     auto CursorFor(HWND target, int hit) const noexcept -> HCURSOR;
     HANDLE thread{}, ready{};
     std::atomic<HWND> window{};
     std::atomic<bool> visible{}, stopping{};
     std::atomic<HWND> fileDialog{};
+    std::atomic<std::uint64_t> fileDialogEpoch{};
     FileDialogFn selectFile{};
     std::atomic<Handler> handler{};
     void* userData{};

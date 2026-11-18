@@ -55,7 +55,7 @@ auto Window::Start(Handler callback, void* data, FileDialogFn dialog) noexcept -
 void Window::Stop() noexcept {
     stopping.store(true);
     handler.store(nullptr);
-    if (const auto dialog = fileDialog.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
+    CancelFileDialog();
     if (const auto hwnd = window.load()) PostMessageW(hwnd, StopMessage, 0, 0);
     if (thread) { WaitForSingleObject(thread, INFINITE); CloseHandle(thread); thread = nullptr; }
     if (ready) { CloseHandle(ready); ready = nullptr; }
@@ -70,6 +70,7 @@ auto Window::Open() noexcept -> bool {
     return true;
 }
 void Window::Close() noexcept {
+    CancelFileDialog();
     visible.store(false);
     if (const auto hwnd = window.load()) PostMessageW(hwnd, HideMessage, 0, 0);
 }
@@ -99,21 +100,31 @@ void Window::Update(const std::vector<Entry>& entries, const Config& config, con
     if (const auto hwnd = window.load()) PostMessageW(hwnd, RefreshMessage, 0, 0);
 }
 void Window::Emit(WindowAction action) noexcept {
+    if (action.kind != WindowActionKind::ImportRules && action.kind != WindowActionKind::ExportRules && action.kind != WindowActionKind::FileError)
+        action.generation = activeGeneration;
     if (const auto callback = handler.load()) callback(userData, std::move(action));
+}
+void Window::CancelFileDialog() noexcept {
+    // An epoch also catches Close before the dialog hook has installed its HWND,
+    // including a rapid reopen which makes the owner visible again.
+    fileDialogEpoch.fetch_add(1);
+    if (const auto dialog = fileDialog.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
 }
 UINT_PTR CALLBACK Window::FileDialogHook(HWND hwnd, UINT message, WPARAM, LPARAM lp) noexcept {
     if (message == WM_INITDIALOG) {
         const auto* info = reinterpret_cast<const OPENFILENAMEW*>(lp);
-        auto* self = reinterpret_cast<Window*>(info->lCustData);
+        const auto* state = reinterpret_cast<const DialogState*>(info->lCustData);
+        auto* self = state->owner;
         const auto dialog = GetParent(hwnd);
         self->fileDialog.store(dialog);
-        if (self->stopping.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
+        if (self->stopping.load() || state->epoch != self->fileDialogEpoch.load()) PostMessageW(dialog, WM_CLOSE, 0, 0);
     }
     return 0;
 }
 void Window::TransferRules(bool exporting) {
     WindowAction event{exporting ? WindowActionKind::ExportRules : WindowActionKind::ImportRules};
     event.generation = activeGeneration;
+    DialogState state{this, fileDialogEpoch.load()};
     bool selected{};
     if (selectFile) selected = selectFile(window.load(), exporting, event.path, event.message);
     else {
@@ -125,13 +136,13 @@ void Window::TransferRules(bool exporting) {
         info.lpstrDefExt = L"toml"; info.lpstrTitle = exporting ? L"Export pickup rules" : L"Import pickup rules";
         info.Flags = OFN_EXPLORER | OFN_ENABLEHOOK | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_DONTADDTORECENT
             | (exporting ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
-        info.lpfnHook = FileDialogHook; info.lCustData = reinterpret_cast<LPARAM>(this);
+        info.lpfnHook = FileDialogHook; info.lCustData = reinterpret_cast<LPARAM>(&state);
         selected = (exporting ? GetSaveFileNameW(&info) : GetOpenFileNameW(&info)) != FALSE;
         fileDialog.store(nullptr);
         if (selected) event.path = path.data();
         else if (CommDlgExtendedError()) event.message = "Could not open the rules file picker. Nothing was changed.";
     }
-    if (stopping.load()) return;
+    if (stopping.load() || state.epoch != fileDialogEpoch.load()) return;
     if (selected) Emit(std::move(event));
     else if (!event.message.empty()) { event.kind = WindowActionKind::FileError; Emit(std::move(event)); }
 }
@@ -287,7 +298,7 @@ void Window::Bulk(Choice choiceValue) {
 void Window::Refresh() {
     const auto index = ListView_GetNextItem(list, -1, LVNI_SELECTED);
     const auto selected = index >= 0 && static_cast<std::size_t>(index) < rows.size() ? rows[static_cast<std::size_t>(index)].code : 0;
-    std::wstring sourceText, statusText; bool dirty{}, filtered{}, delegated{}, changedRows{}; Config config;
+    std::wstring sourceText, statusText; bool dirty{}, filtered{}, delegated{}, changedRows{}, newDraft{}; Config config;
     {
         std::lock_guard lock(mutex);
         changedRows = rowsRevision != pendingRowsRevision;
@@ -295,7 +306,7 @@ void Window::Refresh() {
         sourceText = pendingSource; statusText = pendingStatus;
         dirty = pendingDirty; filtered = pendingFiltered; config = pendingConfig; delegated = pendingDelegated;
         activeInteract = pendingInteract;
-        activeGeneration = pendingGeneration;
+        newDraft = activeGeneration != pendingGeneration; activeGeneration = pendingGeneration;
     }
     updating = true;
     for (std::size_t i = 0; i < toggles.size(); ++i) {
@@ -310,7 +321,7 @@ void Window::Refresh() {
     }
     for (std::size_t i = 0; i < ranges.size(); ++i) {
         // UI-thread refreshes must not replace a value the user is still typing.
-        if (GetFocus() != ranges[i]) {
+        if (newDraft || (!invalidRanges[i] && GetFocus() != ranges[i])) {
             SetWindowTextW(ranges[i], std::to_wstring(i ? config.teleportRange : config.walkingRange).c_str());
             invalidRanges[i] = false;
         }
@@ -382,6 +393,7 @@ void Window::ShowTab() {
     Repaint();
 }
 void Window::Hide() {
+    CancelFileDialog();
     visible.store(false); ShowWindow(window.load(), SW_HIDE);
     if (gameWindow && IsWindow(gameWindow)) SetForegroundWindow(gameWindow);
 }
@@ -457,6 +469,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         EnableWindow(save, FALSE); Layout(); ShowTab(); return 0;
     }
     case ShowMessage: {
+        if (!visible.load()) return 0; // A newer close supersedes this queued open.
         GameWindow game; EnumWindows(FindGame, reinterpret_cast<LPARAM>(&game)); gameWindow = game.handle;
         if (gameWindow) {
             RECT rect{}; GetWindowRect(gameWindow, &rect);
@@ -469,7 +482,7 @@ auto Window::Message(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) -> LRESULT {
         Repaint(); return 0;
     }
     case RefreshMessage: Refresh(); return 0;
-    case HideMessage: Hide(); return 0;
+    case HideMessage: if (!visible.load()) Hide(); return 0; // A newer open supersedes an old hide.
     case StopMessage: DestroyWindow(hwnd); return 0;
     case WM_CLOSE: Hide(); Emit({WindowActionKind::Close}); return 0;
     case WM_DESTROY: visible.store(false); PostQuitMessage(0); return 0;

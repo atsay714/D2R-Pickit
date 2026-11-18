@@ -85,7 +85,7 @@ private:
     }
     auto SearchText() const -> std::string {
         if (windowMode) return window.SearchText();
-        std::array<char, 512> value{}; std::uint32_t needed{};
+        std::array<char, 2048> value{}; std::uint32_t needed{}; // 480 Unicode characters plus UTF-8 expansion.
         const auto handle = Find("Search");
         if (!handle || widgets->getInputText(context, handle, value.data(), static_cast<std::uint32_t>(value.size()), &needed) != WidgetResult::Success)
             return {};
@@ -233,10 +233,9 @@ private:
             std::deque<WindowAction> pending;
             { std::lock_guard lock(self->actionsMutex); pending.swap(self->actions); self->actionsQueued = false; }
             for (const auto& event : pending) {
+                if (event.generation != self->draftGeneration) continue;
                 if (event.kind == WindowActionKind::Close) { self->Close(); continue; }
                 if (!self->editing || !self->IsOpen()) continue;
-                if ((event.kind == WindowActionKind::ImportRules || event.kind == WindowActionKind::ExportRules || event.kind == WindowActionKind::FileError)
-                    && event.generation != self->draftGeneration) continue;
                 switch (event.kind) {
                 case WindowActionKind::ImportRules: self->TransferRules(false, event.path); break;
                 case WindowActionKind::ExportRules: self->TransferRules(true, event.path); break;
@@ -287,12 +286,12 @@ private:
             }
         } catch (...) {}
     }
-    void TransferRules(bool exporting, const std::filesystem::path& path) {
+    void TransferRules(bool exporting, const std::filesystem::path& path, bool replace = true) {
         if (path.empty()) { status = "Enter a TOML file path in Search, then choose Import or Export."; Render(); return; }
         std::string error;
         if (exporting) {
             const auto text = ExportRules(draft, context->activeMod ? context->activeMod : "");
-            if (WriteRulesFile(path, text, context->pluginConfigPath ? context->pluginConfigPath : L"", error))
+            if (WriteRulesFile(path, text, context->pluginConfigPath ? context->pluginConfigPath : L"", error, replace))
                 status = "Exported the displayed pickup rules. Other settings are not included.";
             else status = error;
         } else {
@@ -462,7 +461,7 @@ private:
                     if (command == "Export" && std::filesystem::exists(file, ec)) {
                         self->status = "Export path exists. Choose a new path; the active config is never an export destination.";
                         self->Render();
-                    } else self->TransferRules(command == "Export", file);
+                    } else self->TransferRules(command == "Export", file, false);
                 }
             }
             else if (command == "Search") { self->page = 0; self->Render(); }

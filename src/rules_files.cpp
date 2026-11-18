@@ -69,7 +69,7 @@ auto ReadRulesFile(const std::filesystem::path& path, std::string& output, std::
     output = std::move(text); error.clear(); return true;
 }
 auto WriteRulesFile(const std::filesystem::path& path, std::string_view text,
-        const std::filesystem::path& activeConfig, std::string& error, bool) -> bool {
+        const std::filesystem::path& activeConfig, std::string& error, bool replace) -> bool {
     if (path.empty() || activeConfig.empty() || SameFile(path, activeConfig)) {
         error = "Choose an export file outside the active config. Nothing was exported."; return false;
     }
@@ -77,9 +77,13 @@ auto WriteRulesFile(const std::filesystem::path& path, std::string_view text,
     auto temporary = path; temporary += ".pickit-tmp-" + Suffix();
     if (!WriteNew(temporary, text, error)) return false;
 #ifdef _WIN32
-    const bool moved = MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != FALSE;
+    const bool moved = MoveFileExW(temporary.c_str(), path.c_str(), (replace ? MOVEFILE_REPLACE_EXISTING : 0U) | MOVEFILE_WRITE_THROUGH) != FALSE;
 #else
-    std::error_code moveError; fs::rename(temporary, path, moveError); const bool moved = !moveError;
+    std::error_code moveError;
+    if (replace) fs::rename(temporary, path, moveError);
+    else fs::create_hard_link(temporary, path, moveError); // Atomic publish, refusing an existing name.
+    const bool moved = !moveError;
+    if (moved && !replace) { std::error_code ignored; fs::remove(temporary, ignored); }
 #endif
     if (!moved) {
         std::error_code ignored; fs::remove(temporary, ignored);

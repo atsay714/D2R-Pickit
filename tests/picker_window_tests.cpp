@@ -260,6 +260,9 @@ int main(int argc, char** argv) {
     CloseDuringDialog = nullptr;
     SendMessageW(GetDlgItem(files, 202), BM_CLICK, 0, 0);
     CHECK(Last().kind == WindowActionKind::Toggle && Last().generation == 17);
+    PostMessageW(files, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(L"Dialog reopen complete"));
+    CHECK(Await([&] { wchar_t title[64]{}; GetWindowTextW(files, title, 64); return std::wstring_view(title) == L"Dialog reopen complete"; }));
+    CHECK(window.IsOpen() && IsWindowVisible(files));
     window.Stop();
     std::cout << "Real themed Win32 picker: initial controls, native cursor handling, 6000 rows, scrolling, search, save and teardown; failures: " << failures << '\n';
     return failures ? 1 : 0;
