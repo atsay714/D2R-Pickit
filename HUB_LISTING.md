@@ -1,4 +1,4 @@
-# Prepared listing update for 0.12.0
+# Prepared listing update for 0.12.1
 
 Prepared 2026-11-18 from the live Hub description and editable Markdown source.
 The description update below has not been applied to the live listing.
@@ -22,7 +22,7 @@ Pick up gems, runes, and your selected items while moving or after teleporting a
 
 No more arthritis.
 
-**New in 0.12.0: Save your pickup rules**
+**Save your pickup rules**
 
 Keep your selections when you reinstall your mods. Open **Ctrl+P → Item picker** and choose **Export rules...** to save your category switches and Include/Exclude lists to a TOML file.
 
@@ -30,7 +30,7 @@ To restore them, choose **Import rules...**, review the selections, then **Apply
 
 Exports include the rules currently shown in the menu, including unsaved changes. Before applying an import, Pickit backs up your full current config beside the active TOML. Keep your exported rules outside the mod folder so they survive a reinstall. Pickup distances, potion routing, and Auto Interact settings are kept as they are.
 
-**New in 0.12.0: Pickup radius up to 9999**
+**Pickup radius up to 9999**
 
 Set separate walking and post-cast pickup distances from **1–9999** in **Ctrl+P → General**. The default is still **4**.
 

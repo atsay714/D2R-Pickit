@@ -1,5 +1,6 @@
 #include "rules_profile.hpp"
 #include "item_picker.hpp"
+#include <toml.hpp>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -61,6 +62,29 @@ include = [
     CHECK(SameSelection(imported, current) && report.fields == 11);
     CHECK(imported.enabled && imported.walkingRange == 4); // Export excludes other settings.
     CHECK(exported == ExportRules(current, "Mod \"quoted\" \\ name\nsecond line"));
+    // Metadata must remain a single TOML value, even with controls or content
+    // that resembles rule sections. The real parser checks the emitted format.
+    std::string controls;
+    for (char c = 0; c < 32; ++c) controls += c;
+    controls += static_cast<char>(127);
+    struct MetadataCase { const char* name; std::string mod; };
+    for (const auto& sample : {MetadataCase{"empty", {}},
+            MetadataCase{"quoted and multiline", "Mod \"quoted\" \\ name\nsecond line"},
+            MetadataCase{"section-like text and quote delimiters", "[vanilla]\nrunes=false\n'''\"\"\""},
+            MetadataCase{"ASCII controls", controls},
+            MetadataCase{"Unicode", "Mod \xe7\xb9\x81\xe4\xb8\xad \xf0\x9f\x98\x80"}}) {
+        const auto profile = ExportRules(current, sample.mod);
+        try {
+            const auto document = toml::parse(profile);
+            CHECK(document["pickit_rules"]["format_version"].value_or(0) == 1);
+            CHECK(document["pickit_rules"]["source_mod"].value<std::string>() == sample.mod);
+            CHECK(ImportRules(profile, defaults, imported, report, error));
+            CHECK(SameSelection(imported, current) && report.fields == 11);
+        } catch (const toml::parse_error& failure) {
+            std::cerr << "Metadata case " << sample.name << ": " << failure << '\n';
+            CHECK(false);
+        }
+    }
     if (argc == 2) {
         std::ifstream file(argv[1]); const std::string text{std::istreambuf_iterator<char>(file), {}};
         CHECK(ImportRules(text, current, imported, report, error));
