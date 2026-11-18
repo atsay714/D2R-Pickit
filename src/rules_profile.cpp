@@ -4,6 +4,20 @@
 #include <sstream>
 
 namespace RuffnecKk::AutoPickup::Picker {
+namespace {
+auto QuotedMetadata(std::string_view value) -> std::string {
+    constexpr char Hex[] = "0123456789ABCDEF";
+    std::string text = "\"";
+    for (const auto byte : value) {
+        const auto c = static_cast<unsigned char>(byte);
+        if (c == '"' || c == '\\') { text += '\\'; text += byte; }
+        else if (c < 0x20 || c == 0x7f) {
+            text += "\\u00"; text += Hex[c >> 4]; text += Hex[c & 0xf];
+        } else text += byte; // Preserve the loader's UTF-8 mod name.
+    }
+    text += '"'; return text;
+}
+}
 auto ImportRules(std::string_view text, const Config& current, Config& output,
         RulesImportReport& report, std::string& error) -> bool {
     if (text.size() > MaximumRulesBytes || text.find('\0') != std::string_view::npos) {
@@ -65,14 +79,11 @@ auto ImportRules(std::string_view text, const Config& current, Config& output,
 }
 
 auto ExportRules(const Config& config, std::string_view sourceMod) -> std::string {
-    // Use the TOML formatter for metadata escaping; rule values have a bounded
-    // alphabet and reuse the same exact code serialization as config saves.
-    toml::table metadata;
-    metadata.insert("format_version", 1);
-    metadata.insert("source_mod", std::string(sourceMod));
+    // The export schema is fixed. Escape its only free-form value as a TOML
+    // basic string; rule values reuse the config's bounded code serialization.
     std::ostringstream text;
     text << "# D2R Pickit portable pickup rules\n# Import into the current config; review, then Apply & Save.\n\n[pickit_rules]\n"
-        << toml::toml_formatter{metadata} << "\n\n[vanilla]\n";
+        << "format_version = 1\nsource_mod = " << QuotedMetadata(sourceMod) << "\n\n[vanilla]\n";
     for (std::size_t i = 0; i < VanillaGroups.size(); ++i)
         text << VanillaGroups[i] << " = " << (config.vanilla[i] ? "true" : "false") << '\n';
     text << "\n[reimagined]\n";

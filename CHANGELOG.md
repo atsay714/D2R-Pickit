@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.1 — 2026-11-18
+
+- Simplify portable-rule exports to write the fixed schema directly and disable
+  toml++'s unused general-purpose formatters. Keep its full TOML import parser.
+- Correct metadata escaping for mod names containing newlines, control
+  characters, quotes and backslashes, including combinations of triple-quote
+  delimiters. Preserve UTF-8 names and round-trip all pickup rule fields.
+- Keep rule imports, config backups, atomic exports, pickup radius through 9999,
+  Auto Interact, potion routing and existing configs compatible with 0.12.0.
+
 ## 0.12.0 — 2026-11-18
 
 - Import/export portable pickup rules from Ctrl+P > Item picker. Restore category
