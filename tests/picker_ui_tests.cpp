@@ -208,6 +208,11 @@ int main() {
     Send("Import"); LoaderFixture::ConfigText += "\n[reimagined]\ngems=false\n";
     Send("Save"); CHECK(writes == 6 && commits == 3 && backups().size() == 2);
     CHECK(labels[ids["Status"]].find("outside") != std::string::npos);
+    const auto unicodePath = std::filesystem::path(L"\\\\?\\" + folder.wstring()) / (std::wstring(175, L'\u898f') + L".toml");
+    { std::ofstream file(unicodePath, std::ios::binary); CHECK(file); file << "[item_codes]\ninclude=[]\n"; }
+    const auto unicodeText = unicodePath.u8string(); search.assign(unicodeText.begin(), unicodeText.end());
+    CHECK(search.size() > 512); Send("Import");
+    CHECK(labels[ids["Status"]].find("Imported") != std::string::npos);
     std::filesystem::remove_all(folder);
     LoaderFixture::Context.pluginConfigPath = nullptr;
     picker.Stop(); CHECK(!open && unregistered == 4);

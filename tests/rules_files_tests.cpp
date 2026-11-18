@@ -10,7 +10,7 @@ int failures{};
 #define CHECK(x) do { if (!(x)) { std::cerr << "Failed line " << __LINE__ << ": " #x "\n"; ++failures; } } while (false)
 auto Read(const fs::path& path) -> std::string { std::ifstream file(path, std::ios::binary); return {std::istreambuf_iterator<char>(file), {}}; }
 }
-int main() {
+int main() try {
     const auto root = fs::temp_directory_path() / ("pickit-files-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     fs::create_directory(root);
     const auto active = root / "active.toml", preset = root / fs::path(L"pickup-\u898f\u5247.toml");
@@ -21,6 +21,9 @@ int main() {
     CHECK(ReadRulesFile(preset, text, error) && text == "[item_codes]\ninclude=[]\n");
     CHECK(WriteRulesFile(preset, "[vanilla]\nrunes=true\n", active, error));
     CHECK(Read(preset) == "[vanilla]\nrunes=true\n");
+    CHECK(!WriteRulesFile(preset, "must not overwrite", active, error, false));
+    CHECK(Read(preset) == "[vanilla]\nrunes=true\n");
+    CHECK(WriteRulesFile(root / "exclusive.toml", "new export", active, error, false));
     CHECK(!WriteRulesFile(active, "bad", active, error) && Read(active) == old);
     CHECK(!WriteRulesFile(root / "." / "active.toml", "bad", active, error) && Read(active) == old);
     std::error_code ec;
@@ -41,8 +44,10 @@ int main() {
     CHECK(!ReadRulesFile(root / "missing.toml", text, error) && text == "unchanged");
     CHECK(!ReadRulesFile(root, text, error));
     CHECK(!WriteRulesFile(root, "bad", active, error));
-    for (const auto& entry : fs::directory_iterator(root)) CHECK(entry.path().filename().string().find("pickit-tmp") == std::string::npos);
+    for (const auto& entry : fs::directory_iterator(root)) CHECK(entry.path().filename().native().find(fs::path("pickit-tmp").native()) == std::filesystem::path::string_type::npos);
     fs::remove_all(root);
     std::cout << "Rules file I/O and backups; failures: " << failures << '\n';
     return failures ? 1 : 0;
+} catch (const std::exception& error) {
+    std::cerr << "Rules file fixture exception: " << error.what() << '\n'; return 1;
 }

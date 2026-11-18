@@ -12,7 +12,9 @@ int failures{};
 std::mutex eventMutex;
 std::vector<WindowAction> events;
 bool DialogSelected{true}, DialogExport{};
+Window* CloseDuringDialog{};
 bool SelectRules(HWND, bool exporting, std::wstring& path, std::string&) {
+    if (CloseDuringDialog) { CloseDuringDialog->Close(); CloseDuringDialog->Open(); }
     DialogExport = exporting; path = L"C:\\backup\\\u898f\u5247.toml"; return DialogSelected;
 }
 void Event(void*, WindowAction value) noexcept {
@@ -171,6 +173,10 @@ int main(int argc, char** argv) {
     CHECK(Last().kind == WindowActionKind::Range && Last().code == 0 && Last().value == 9999);
     SetWindowTextW(GetDlgItem(hwnd, 220), L"10000");
     CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 104))); // Invalid text cannot save a stale radius.
+    window.Update({}, config, "Invalid radius refresh", "Another setting changed", true, false);
+    CHECK(AwaitText(hwnd, L"Invalid radius refresh"));
+    wchar_t invalidText[32]{}; GetWindowTextW(GetDlgItem(hwnd, 220), invalidText, 32);
+    CHECK(std::wstring_view(invalidText) == L"10000" && !IsWindowEnabled(GetDlgItem(hwnd, 104)));
     SetWindowTextW(GetDlgItem(hwnd, 220), L"0");
     CHECK(!IsWindowEnabled(GetDlgItem(hwnd, 104)));
     SetWindowTextW(GetDlgItem(hwnd, 220), L"21");
@@ -248,6 +254,12 @@ int main(int argc, char** argv) {
     DialogSelected = false;
     SendMessageW(files, WM_COMMAND, MAKEWPARAM(111, BN_CLICKED), 0);
     CHECK(Last().kind == WindowActionKind::ExportRules); // Cancellation emits no import.
+    DialogSelected = true; CloseDuringDialog = &window;
+    SendMessageW(files, WM_COMMAND, MAKEWPARAM(111, BN_CLICKED), 0);
+    CHECK(Last().kind == WindowActionKind::ExportRules); // Close/reopen invalidates a pending dialog.
+    CloseDuringDialog = nullptr;
+    SendMessageW(GetDlgItem(files, 202), BM_CLICK, 0, 0);
+    CHECK(Last().kind == WindowActionKind::Toggle && Last().generation == 17);
     window.Stop();
     std::cout << "Real themed Win32 picker: initial controls, native cursor handling, 6000 rows, scrolling, search, save and teardown; failures: " << failures << '\n';
     return failures ? 1 : 0;
